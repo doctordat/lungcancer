@@ -17,6 +17,7 @@ const defaultState = () => ({
   encounterState: 'previsit-draft',
   selectedTab: 'today',
   alertHandled: false,
+  alertResolution: { acknowledged:false, assessment:'', action:'', clinicianReason:'', status:'open' },
   patient: {
     name: 'Nguyễn Văn Minh', code: 'LC-871748', age: 62, sex: 'Nam', ecog: 0,
     diagnosis: 'NSCLC adenocarcinoma', stage: 'IVA', tnm: 'cT2bN2M1a',
@@ -64,6 +65,7 @@ function normalize(raw) {
     decisionBrief: { ...d.decisionBrief, ...(raw.decisionBrief || {}), facts: Array.isArray(raw.decisionBrief?.facts) ? raw.decisionBrief.facts : d.decisionBrief.facts, patientReported: Array.isArray(raw.decisionBrief?.patientReported) ? raw.decisionBrief.patientReported : d.decisionBrief.patientReported, safetyGates: Array.isArray(raw.decisionBrief?.safetyGates) ? raw.decisionBrief.safetyGates : d.decisionBrief.safetyGates },
     education: { ...d.education, ...(raw.education || {}) },
     home: { ...d.home, ...(raw.home || {}) },
+    alertResolution: { ...d.alertResolution, ...(raw.alertResolution || {}) },
     alerts: Array.isArray(raw.alerts) ? raw.alerts : []
   };
 }
@@ -111,7 +113,8 @@ function topbar(roleMeta){ return `<header class="top"><div><small>${roleMeta[2]
 function alertsStrip(){
   const red = state.alerts.find(a => a.type === 'red');
   if (!red) return '';
-  return `<section class="red-alert"><div><b>⚠ CẢNH BÁO ĐỎ · Khó thở khi nghỉ</b><p>${red.detail} · gửi đồng thời bác sĩ và điều dưỡng lúc ${red.at}. Nếu tình trạng nặng, thực hiện protocol cấp cứu của cơ sở và không chờ phản hồi trên app.</p></div><div>${button('Ghi nhận đã liên hệ', 'handleAlert()', 'danger')}${button('Xem protocol cơ sở', 'alert("Demo: protocol cấp cứu cần được cơ sở cấu hình và bác sĩ phụ trách phê duyệt")', 'outline dangerText')}</div></section>`;
+  const r=state.alertResolution;
+  return `<section class="red-alert"><div><b>⚠ CẢNH BÁO ĐỎ · Khó thở khi nghỉ</b><p>${red.detail} · gửi đồng thời bác sĩ và điều dưỡng lúc ${red.at}. Nếu tình trạng nặng, thực hiện protocol cấp cứu của cơ sở và không chờ phản hồi trên app.</p>${r.acknowledged?`<div class="alert-workup"><label>Đánh giá/xử trí theo protocol cơ sở<textarea oninput="update(['alertResolution','assessment'],this.value)" placeholder="Người đánh giá, thời điểm, đánh giá, hành động...">${r.assessment}</textarea></label><label>Lý do bác sĩ đóng/override cảnh báo<textarea oninput="update(['alertResolution','clinicianReason'],this.value)" placeholder="Bắt buộc để mở lại quyết định thường quy">${r.clinicianReason}</textarea></label></div>`:''}</div><div class="alert-actions">${!r.acknowledged?button('Tiếp nhận cảnh báo','acknowledgeAlert()','danger'):r.assessment.trim()&&r.clinicianReason.trim()?button('BS xác nhận đã xử trí/override','resolveAlert()','danger'):button('Cần ghi đánh giá + lý do BS','void(0)','disabled')}${button('Xem protocol cơ sở','alert("Demo: protocol cấp cứu cần được cơ sở cấu hình và bác sĩ phụ trách phê duyệt")','outline dangerText')}</div></section>`;
 }
 
 function flowRibbon(){ return `<section class="flow">${FLOW.slice(1).map(([k,l],i)=>`<div class="step ${can(k)?'done':''} ${state.encounterState===k?'active':''}"><span>${i+1}</span><b>${l}</b></div>`).join('')}</section>`; }
@@ -155,7 +158,7 @@ function decisionOptions(){ const options=[
   {name:'Giữ thuốc · đánh giá thêm',badge:'Safety first',why:'Chọn khi xuất hiện red flag hoặc dữ liệu an toàn chưa đủ để tiếp tục.',need:'Đánh giá trực tiếp, xét nghiệm/ECG và loại trừ biến cố nghiêm trọng.'},
   {name:'Trình MDT / đổi chiến lược',badge:'Escalate',why:'Chọn khi tiến triển, kháng thuốc hoặc chẩn đoán/đáp ứng không phù hợp.',need:'Hình ảnh, molecular evolution và bối cảnh lâm sàng đầy đủ.'}
 ]; return `<div class="decision-options">${options.map(o=>`<button class="decision-option ${state.doctor.decision===o.name?'on':''}" onclick="update(['doctor','decision'],'${o.name}')"><span>${o.badge}</span><b>${o.name}</b><p><strong>Vì sao:</strong> ${o.why}</p><p><strong>Cần thêm:</strong> ${o.need}</p></button>`).join('')}</div>`; }
-function hasUnresolvedRed(){ return state.alerts.some(a=>a.type==='red') && !state.alertHandled; }
+function hasUnresolvedRed(){ return state.alerts.some(a=>a.type==='red') && state.alertResolution.status!=='resolved'; }
 function confirmDecision(){ if(hasUnresolvedRed()){ alert('Cảnh báo đỏ chưa được xử trí. Hãy ghi nhận đánh giá/điều phối theo protocol cơ sở trước khi xác nhận quyết định thường quy.'); return; } state.doctor.decisionStatus='confirmed'; event('CLINICIAN_DECISION_CONFIRMED',{detail:`${state.doctor.decision} · Lý do: ${state.doctor.decisionReason}`}); advance('doctor-plan-confirmed','HANDOFF_CARDS_CREATED'); }
 function mdcalcBlock(t,v,h){ return `<div class="calc"><b>${t}</b><span>${v}</span><small>${h}</small></div>`; }
 function checklist(group, items){ return `<div class="checklist">${items.map(s=>{const [k,l]=s.split('|'); return `<label><input type="checkbox" ${state[group][k]?'checked':''} onchange="update(['${group}','${k}'],this.checked)"/> <span>${l}</span></label>`}).join('')}</div>`; }
@@ -163,9 +166,10 @@ function activityLog(){ return `<section class="card"><small>EVENT / AUDIT TIMEL
 
 function takeMed(){ state.home.medicationTakenToday = true; state.patient.adherence.taken = Math.min(42, state.patient.adherence.taken + 1); event('MEDICATION_TAKEN', {detail:'Người bệnh xác nhận đã uống osimertinib hôm nay'}); save(); render(); }
 function missDose(){ state.home.missedToday = true; state.patient.adherence.missed += 1; event('MEDICATION_MISSED', {detail:'Demo: hiện hướng dẫn xử trí quên liều và báo điều dưỡng nếu lặp lại'}); save(); render(); }
-function redDyspnea(){ state.alerts.unshift({type:'red', name:'TOXICITY_REPORTED_RED', symptom:'Khó thở khi nghỉ', detail:'Người bệnh báo khó thở khi nghỉ/không nói trọn câu. Mục tiêu phản hồi < 5 phút.', at:new Date().toLocaleTimeString('vi-VN')}); save(); render(); }
+function redDyspnea(){ state.alertResolution={acknowledged:false,assessment:'',action:'',clinicianReason:'',status:'open'}; state.alertHandled=false; state.alerts.unshift({type:'red', name:'TOXICITY_REPORTED_RED', symptom:'Khó thở khi nghỉ', detail:'Người bệnh báo khó thở khi nghỉ/không nói trọn câu. Mục tiêu phản hồi < 5 phút.', at:new Date().toLocaleTimeString('vi-VN')}); save(); render(); }
 function yellowSymptom(s){ state.alerts.unshift({type:'yellow', name:'TOXICITY_REPORTED_YELLOW', symptom:s, detail:'Điều dưỡng gọi lại trong ngày, bác sĩ xem nếu nặng lên.', at:new Date().toLocaleTimeString('vi-VN')}); save(); render(); }
-function handleAlert(){ state.alertHandled = true; event('ALERT_CALL_DOCUMENTED', {detail:'Đã ghi nhận cuộc gọi xử trí cảnh báo đỏ trong demo'}); save(); render(); }
+function acknowledgeAlert(){ state.alertResolution.acknowledged=true; state.alertResolution.status='acknowledged'; event('RED_ALERT_ACKNOWLEDGED',{detail:'Đã tiếp nhận cảnh báo; quyết định thường quy vẫn bị khóa cho tới khi có đánh giá và xác nhận của bác sĩ.'}); save(); render(); }
+function resolveAlert(){ if(!state.alertResolution.assessment.trim()||!state.alertResolution.clinicianReason.trim()) return; state.alertResolution.status='resolved'; state.alertHandled=true; event('RED_ALERT_CLINICIAN_RESOLVED',{detail:`Đánh giá: ${state.alertResolution.assessment} · Lý do BS: ${state.alertResolution.clinicianReason}`}); save(); render(); }
 function voiceDoctor(){ state.doctor.voiceDone = true; state.doctor.note = 'Voice draft: BN tuần 6 osimertinib, tuân thủ tốt 41/42 liều. Tiêu chảy grade 2, ban da grade 1, không sốt. Chưa có khó thở lúc khám. Đề xuất tiếp tục osimertinib, xử trí hỗ trợ tiêu chảy/ban da, xét nghiệm CBC/điện giải/gan thận, hẹn CT đánh giá đáp ứng.'; event('VOICE_CONSULT_STRUCTURED', {detail:'AI tách transcript thành tuân thủ, độc tính, khám, nhận định, kế hoạch đề xuất'}); save(); render(); }
 function render(){ document.getElementById('app').innerHTML = ({patient, nurse, doctor}[state.role] || patient)(); }
 render();
