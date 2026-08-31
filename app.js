@@ -27,7 +27,26 @@ const defaultState = () => ({
   },
   previsit: { goal: '', changes: '', adherence: '', toxicity: '', submittedAt: null },
   intake: { idChecked: false, vitals: false, allergy: false, medrec: false, redflags: false, note: '' },
-  doctor: { accepted: false, voiceDone: false, toxicityReviewed: false, molecularReviewed: false, recistReviewed: false, decision: 'Tiếp tục osimertinib 80 mg', note: '' },
+  doctor: { accepted: false, voiceDone: false, toxicityReviewed: false, molecularReviewed: false, recistReviewed: false, decision: 'Tiếp tục osimertinib 80 mg', decisionStatus: 'draft', decisionReason: '', note: '' },
+  decisionBrief: {
+    facts: [
+      { label:'Chẩn đoán', value:'NSCLC adenocarcinoma · Stage IVA', source:'Clinical fact · BS xác nhận' },
+      { label:'Molecular', value:'EGFR exon 19 deletion', source:'Molecular report · baseline' },
+      { label:'Điều trị hiện tại', value:'Osimertinib 80 mg/ngày · tuần 6', source:'Treatment plan v1' },
+      { label:'Tuân thủ', value:'41/42 liều · 98%', source:'Patient medication log' }
+    ],
+    patientReported: [
+      { label:'Tiêu chảy', value:'Grade 2 (demo)', source:'Người bệnh báo cáo' },
+      { label:'Ban da', value:'Grade 1 (demo)', source:'Người bệnh báo cáo' }
+    ],
+    safetyGates: [
+      { label:'Khó thở mới / nghi ILD', status:'clear', detail:'Chưa ghi nhận tại thời điểm khám demo' },
+      { label:'QTc · điện giải', status:'missing', detail:'Chưa có ECG/điện giải gần nhất' },
+      { label:'Gan · thận', status:'ready', detail:'Dữ liệu demo trong giới hạn theo dõi' },
+      { label:'Đáp ứng hình ảnh', status:'missing', detail:'CT tuần 8 chưa thực hiện' }
+    ],
+    evidence: { title:'Protocol demo · Osimertinib follow-up', version:'v0.1 · 31/08/2026', note:'Nội dung mô phỏng, chờ bác sĩ phụ trách phê duyệt và gắn nguồn chính thức.' }
+  },
   education: { identity: false, emr: false, allergy: false, meds: false, missedDose: false, toxicity: false, redflags: false, teachback: false, followup: false, contact: false },
   home: { medicationTakenToday: false, missedToday: false },
   alerts: []
@@ -42,6 +61,7 @@ function normalize(raw) {
     previsit: { ...d.previsit, ...(raw.previsit || {}) },
     intake: { ...d.intake, ...(raw.intake || {}) },
     doctor: { ...d.doctor, ...(raw.doctor || {}) },
+    decisionBrief: { ...d.decisionBrief, ...(raw.decisionBrief || {}), facts: Array.isArray(raw.decisionBrief?.facts) ? raw.decisionBrief.facts : d.decisionBrief.facts, patientReported: Array.isArray(raw.decisionBrief?.patientReported) ? raw.decisionBrief.patientReported : d.decisionBrief.patientReported, safetyGates: Array.isArray(raw.decisionBrief?.safetyGates) ? raw.decisionBrief.safetyGates : d.decisionBrief.safetyGates },
     education: { ...d.education, ...(raw.education || {}) },
     home: { ...d.home, ...(raw.home || {}) },
     alerts: Array.isArray(raw.alerts) ? raw.alerts : []
@@ -51,6 +71,7 @@ function normalize(raw) {
 let state = load();
 function load(){ try { return normalize(JSON.parse(localStorage.getItem(STORAGE_KEY))); } catch { return defaultState(); } }
 function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+save();
 function set(patch){ state = normalize({ ...state, ...patch }); save(); render(); }
 function update(path, value){ let s = structuredClone(state); let o = s; path.slice(0,-1).forEach(k => o = o[k]); o[path.at(-1)] = value; set(s); }
 function event(name, payload={}){ state.alerts.unshift({ type:'event', name, at: new Date().toLocaleTimeString('vi-VN'), ...payload }); save(); }
@@ -90,7 +111,7 @@ function topbar(roleMeta){ return `<header class="top"><div><small>${roleMeta[2]
 function alertsStrip(){
   const red = state.alerts.find(a => a.type === 'red');
   if (!red) return '';
-  return `<section class="red-alert"><div><b>⚠ CẢNH BÁO ĐỎ · Khó thở khi nghỉ</b><p>${red.detail} · gửi đồng thời bác sĩ và điều dưỡng lúc ${red.at}. Không chờ phản hồi nếu tình trạng nặng.</p></div><div>${button('Ghi nhận đã gọi', 'handleAlert()', 'danger')}${button('Gọi 115', 'alert("Demo: mở cuộc gọi 115")', 'outline dangerText')}</div></section>`;
+  return `<section class="red-alert"><div><b>⚠ CẢNH BÁO ĐỎ · Khó thở khi nghỉ</b><p>${red.detail} · gửi đồng thời bác sĩ và điều dưỡng lúc ${red.at}. Nếu tình trạng nặng, thực hiện protocol cấp cứu của cơ sở và không chờ phản hồi trên app.</p></div><div>${button('Ghi nhận đã liên hệ', 'handleAlert()', 'danger')}${button('Xem protocol cơ sở', 'alert("Demo: protocol cấp cứu cần được cơ sở cấu hình và bác sĩ phụ trách phê duyệt")', 'outline dangerText')}</div></section>`;
 }
 
 function flowRibbon(){ return `<section class="flow">${FLOW.slice(1).map(([k,l],i)=>`<div class="step ${can(k)?'done':''} ${state.encounterState===k?'active':''}"><span>${i+1}</span><b>${l}</b></div>`).join('')}</section>`; }
@@ -110,12 +131,31 @@ function patient(){
   ${active ? homePlan() : `<section class="empty card"><b>Chưa có kế hoạch tại nhà</b><p>Kế hoạch chỉ kích hoạt sau khi bác sĩ xác nhận và điều dưỡng hoàn tất teach-back.</p></section>`}`);
 }
 
-function homePlan(){ return `<section class="card"><small>KẾ HOẠCH VỀ NHÀ</small><div class="grid three"><div><b>Thuốc</b><p>Osimertinib 80mg 08:00 mỗi ngày</p></div><div><b>Xét nghiệm</b><p>CBC, AST/ALT, creatinine, điện giải trước tái khám</p></div><div><b>Báo ngay</b><p>Khó thở, đau ngực, sốt, tiêu chảy tăng, không uống được nước</p></div></div></section>`; }
+function homePlan(){ return `<section class="card"><small>KẾ HOẠCH VỀ NHÀ · TỪ QUYẾT ĐỊNH ĐÃ XÁC NHẬN</small><h2>${state.doctor.decision}</h2>${handoffCards('patient')}</section>`; }
+function handoffCards(audience){
+  const cards = audience==='nurse' ? [
+    ['Thuốc & đối chiếu',state.doctor.decision,'Đối chiếu với HIS/EMR trước hướng dẫn; không tự thay đổi quyết định.'],
+    ['Theo dõi an toàn','Điện giải · QTc · gan thận','Xác nhận lịch xét nghiệm và báo BS khi dữ liệu chưa đủ.'],
+    ['Teach-back','Quên liều · độc tính · red flags','Người bệnh phải nhắc lại đúng trước khi kích hoạt My Care.']
+  ] : [
+    ['Thuốc hôm nay','Osimertinib 80 mg lúc 08:00','Dùng đúng kế hoạch đã được đội điều trị xác nhận.'],
+    ['Việc sắp tới','Xét nghiệm an toàn + CT tuần 8','App sẽ nhắc theo lịch khoa đã xác nhận.'],
+    ['Khi cần báo ngay','Khó thở mới, đau ngực, sốt, tiêu chảy tăng','Liên hệ khoa theo hướng dẫn; tình trạng nặng làm theo protocol cấp cứu của cơ sở.']
+  ];
+  return `<div class="handoff-grid">${cards.map(c=>`<div class="handoff"><small>${c[0]}</small><b>${c[1]}</b><p>${c[2]}</p></div>`).join('')}</div>`;
+}
 
-function nurse(){ return shell(`${patientSummary()}<div class="grid two"><section class="card"><small>TIẾP NHẬN ĐIỀU DƯỠNG</small><h2>${can('previsit-submitted')?'Có bệnh nhân đã gửi khai nhanh':'Chờ bệnh nhân gửi khai nhanh'}</h2><p>Định danh, sinh hiệu, dị ứng, thuốc đang dùng và dấu hiệu báo động.</p>${checklist('intake', ['idChecked|Đối chiếu họ tên · ngày sinh · mã BN','vitals|Nhập sinh hiệu · SpO₂ · đau · cân nặng','allergy|Xác minh dị ứng','medrec|Medication reconciliation','redflags|Xác minh dấu hiệu báo động'])}<label>Ghi chú voice/nhập tay<textarea oninput="update(['intake','note'],this.value)">${state.intake.note}</textarea></label>${doneCount(state.intake)>=5 ? button('Hoàn tất tiếp nhận → gửi bác sĩ','advance("ready-for-doctor","NURSE_INTAKE_COMPLETED")','primary') : button('Cần đủ checklist để hoàn tất','void(0)','disabled')}</section><section class="card"><small>SAU KHI BÁC SĨ CHỐT KẾ HOẠCH</small><h2>${can('doctor-plan-confirmed')?'Kế hoạch đã chuyển từ bác sĩ':'Chưa có kế hoạch điều trị'}</h2><p>Điều dưỡng chỉ teach-back sau khi có plan version từ bác sĩ. Không tự sinh y lệnh.</p>${can('doctor-plan-confirmed') ? teachback() : '<div class="empty">Checklist bàn giao sẽ xuất hiện sau khi BS xác nhận.</div>'}</section></div>${activityLog()}`); }
+function nurse(){ return shell(`${patientSummary()}<div class="grid two"><section class="card"><small>TIẾP NHẬN ĐIỀU DƯỠNG</small><h2>${can('previsit-submitted')?'Có bệnh nhân đã gửi khai nhanh':'Chờ bệnh nhân gửi khai nhanh'}</h2><p>Định danh, sinh hiệu, dị ứng, thuốc đang dùng và dấu hiệu báo động.</p>${checklist('intake', ['idChecked|Đối chiếu họ tên · ngày sinh · mã BN','vitals|Nhập sinh hiệu · SpO₂ · đau · cân nặng','allergy|Xác minh dị ứng','medrec|Medication reconciliation','redflags|Xác minh dấu hiệu báo động'])}<label>Ghi chú voice/nhập tay<textarea oninput="update(['intake','note'],this.value)">${state.intake.note}</textarea></label>${doneCount(state.intake)>=5 ? button('Hoàn tất tiếp nhận → gửi bác sĩ','advance("ready-for-doctor","NURSE_INTAKE_COMPLETED")','primary') : button('Cần đủ checklist để hoàn tất','void(0)','disabled')}</section><section class="card"><small>SAU KHI BÁC SĨ CHỐT KẾ HOẠCH</small><h2>${can('doctor-plan-confirmed')?'Kế hoạch đã chuyển từ bác sĩ':'Chưa có kế hoạch điều trị'}</h2><p>Điều dưỡng chỉ nhận các việc cần phối hợp từ quyết định đã xác nhận — không nhận toàn bộ bệnh án và không tự sinh y lệnh.</p>${can('doctor-plan-confirmed') ? handoffCards('nurse') + teachback() : '<div class="empty">Handoff cards sẽ xuất hiện sau khi BS xác nhận quyết định.</div>'}</section></div>${activityLog()}`); }
 function teachback(){ return `${checklist('education', ['identity|Đúng người bệnh','emr|Đối chiếu kế hoạch với HIS/EMR','allergy|Kiểm tra dị ứng','meds|Hướng dẫn từng thuốc','missedDose|Xử trí quên liều','toxicity|Độc tính thường gặp','redflags|Dấu hiệu phải báo ngay','teachback|Người bệnh nhắc lại đúng','followup|Lịch xét nghiệm/tái khám','contact|Số liên hệ khoa'])}${doneCount(state.education)>=10 ? button('Hoàn tất teach-back · kích hoạt My Care','advance("home-care-active","NURSE_EDUCATION_COMPLETED")','primary') : button('Hoàn tất sau khi đủ teach-back','void(0)','disabled')}`; }
 
-function doctor(){ return shell(`${patientSummary()}<div class="layout"><section class="card"><small>DANH SÁCH BỆNH NHÂN</small>${['Nguyễn Văn Minh · tái khám · ready for doctor','Lê Hoàng Nam · ANC thấp · cần xử lý','Phạm Mỹ An · MDT 10:30'].map((x,i)=>`<div class="list ${i===0?'on':''}"><b>${x.split(' · ')[0]}</b><span>${x.split(' · ').slice(1).join(' · ')}</span></div>`).join('')}</section><section class="card"><small>KHÁM NGOẠI TRÚ TÁI KHÁM</small><h2>Mục tiêu: đáp ứng · độc tính · liều</h2><p>Voice consultation demo tách nội dung thành triệu chứng, tuân thủ, độc tính, khám, nhận định và kế hoạch đề xuất.</p><div class="actions">${can('ready-for-doctor') ? button('Nhận bệnh','advance("doctor-examining","DOCTOR_ACCEPTED_CASE")','primary') : button('Chờ điều dưỡng tiếp nhận','void(0)','disabled')}${button('Khám bằng giọng nói','voiceDoctor()','outline')}</div><label>Nhận định/kế hoạch<textarea oninput="update(['doctor','note'],this.value)">${state.doctor.note}</textarea></label><div class="decision-grid">${['Tiếp tục osimertinib 80 mg','Tạm ngưng thuốc','Giảm liều','Đổi phác đồ','Nhập viện','Chuyển cấp cứu'].map(d=>`<button class="choice ${state.doctor.decision===d?'on':''}" onclick="update(['doctor','decision'],'${d}')">${d}</button>`).join('')}</div>${can('doctor-examining') ? button('Xác nhận kế hoạch → chuyển điều dưỡng','advance("doctor-plan-confirmed","DOCTOR_PLAN_CONFIRMED")','primary') : ''}</section><aside class="sticky"><section class="card"><small>CDS STICKY PANEL</small>${mdcalcBlock('Molecular','EGFR exon 19 deletion','Osimertinib phù hợp · diễn giải cùng lâm sàng/hình ảnh')}${mdcalcBlock('Toxicity','Tiêu chảy G2 · ban da G1','Cân nhắc giữ liều + xử trí hỗ trợ, cần BS xác nhận')}${mdcalcBlock('RECIST','Chưa nhập CT hiện tại','Cần CT đánh giá đáp ứng sau 8 tuần')}</section></aside></div>${activityLog()}`); }
+function doctor(){ return shell(`${patientSummary()}<div class="decision-layout"><section class="card"><small>DECISION BRIEF · TUẦN 6</small><h2>Tiếp tục điều trị hay cần đánh giá thêm?</h2><p class="lead">Bản tóm tắt cho một quyết định — không phải bệnh án. Mọi gợi ý cần bác sĩ xác nhận.</p><div class="brief-columns"><div><h3>Dữ kiện đã xác nhận</h3>${briefFacts(state.decisionBrief.facts,'fact')}</div><div><h3>Người bệnh báo cáo</h3>${briefFacts(state.decisionBrief.patientReported,'reported')}</div></div><h3>Safety gates</h3><div class="gates">${state.decisionBrief.safetyGates.map(g=>`<div class="gate ${g.status}"><span>${g.status==='ready'||g.status==='clear'?'✓':'!'}</span><div><b>${g.label}</b><small>${g.detail}</small></div></div>`).join('')}</div></section><section class="card"><small>CDS OPTIONS · KHÔNG PHẢI Y LỆNH</small><h2>Các hướng xử trí để bác sĩ cân nhắc</h2>${decisionOptions()}<label>Lý do quyết định / lý do từ chối gợi ý<textarea oninput="update(['doctor','decisionReason'],this.value)" placeholder="Bắt buộc ghi lý do trước khi xác nhận">${state.doctor.decisionReason}</textarea></label><div class="actions">${can('ready-for-doctor') ? button('Nhận ca','advance("doctor-examining","DOCTOR_ACCEPTED_CASE")','outline') : button('Chờ ĐD hoàn tất tiếp nhận','void(0)','disabled')}${can('doctor-examining') && state.doctor.decisionReason.trim() ? button('Xác nhận quyết định · tạo handoff','confirmDecision()','primary') : button('Cần nhận ca + ghi lý do','void(0)','disabled')}</div></section><aside class="sticky"><section class="card evidence"><small>NGUỒN & PHIÊN BẢN</small><h3>${state.decisionBrief.evidence.title}</h3><p>${state.decisionBrief.evidence.version}</p><div class="warning">${state.decisionBrief.evidence.note}</div><hr><b>Dữ liệu còn thiếu</b><ul>${state.decisionBrief.safetyGates.filter(g=>g.status==='missing').map(g=>`<li>${g.label}</li>`).join('')}</ul></section></aside></div>${activityLog()}`); }
+function briefFacts(items, kind){ return items.map(x=>`<div class="brief-fact ${kind}"><b>${x.label}</b><strong>${x.value}</strong><small>${x.source}</small></div>`).join(''); }
+function decisionOptions(){ const options=[
+  {name:'Tiếp tục osimertinib 80 mg',badge:'Có điều kiện',why:'Tuân thủ tốt; độc tính người bệnh báo cáo hiện ở mức demo G1–2.',need:'Bổ sung điện giải/QTc và theo dõi triệu chứng; CT tuần 8.'},
+  {name:'Giữ thuốc · đánh giá thêm',badge:'Safety first',why:'Chọn khi xuất hiện red flag hoặc dữ liệu an toàn chưa đủ để tiếp tục.',need:'Đánh giá trực tiếp, xét nghiệm/ECG và loại trừ biến cố nghiêm trọng.'},
+  {name:'Trình MDT / đổi chiến lược',badge:'Escalate',why:'Chọn khi tiến triển, kháng thuốc hoặc chẩn đoán/đáp ứng không phù hợp.',need:'Hình ảnh, molecular evolution và bối cảnh lâm sàng đầy đủ.'}
+]; return `<div class="decision-options">${options.map(o=>`<button class="decision-option ${state.doctor.decision===o.name?'on':''}" onclick="update(['doctor','decision'],'${o.name}')"><span>${o.badge}</span><b>${o.name}</b><p><strong>Vì sao:</strong> ${o.why}</p><p><strong>Cần thêm:</strong> ${o.need}</p></button>`).join('')}</div>`; }
+function confirmDecision(){ state.doctor.decisionStatus='confirmed'; event('CLINICIAN_DECISION_CONFIRMED',{detail:`${state.doctor.decision} · Lý do: ${state.doctor.decisionReason}`}); advance('doctor-plan-confirmed','HANDOFF_CARDS_CREATED'); }
 function mdcalcBlock(t,v,h){ return `<div class="calc"><b>${t}</b><span>${v}</span><small>${h}</small></div>`; }
 function checklist(group, items){ return `<div class="checklist">${items.map(s=>{const [k,l]=s.split('|'); return `<label><input type="checkbox" ${state[group][k]?'checked':''} onchange="update(['${group}','${k}'],this.checked)"/> <span>${l}</span></label>`}).join('')}</div>`; }
 function activityLog(){ return `<section class="card"><small>EVENT / AUDIT TIMELINE</small>${state.alerts.slice(0,8).map(a=>`<div class="event ${a.type==='red'?'red':''}"><b>${a.name || a.symptom}</b><span>${a.at}</span><p>${a.detail || ''}</p></div>`).join('') || '<div class="empty">Chưa có sự kiện.</div>'}</section>`; }
