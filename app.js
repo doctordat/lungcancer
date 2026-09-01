@@ -70,7 +70,7 @@ function normalize(raw) {
     previsit: { ...d.previsit, ...(raw.previsit || {}) },
     intake: { ...d.intake, ...(raw.intake || {}) },
     doctor: { ...d.doctor, ...(raw.doctor || {}) },
-    decisionBrief: { ...d.decisionBrief, ...(raw.decisionBrief || {}), facts: Array.isArray(raw.decisionBrief?.facts) ? raw.decisionBrief.facts : d.decisionBrief.facts, patientReported: Array.isArray(raw.decisionBrief?.patientReported) ? raw.decisionBrief.patientReported : d.decisionBrief.patientReported, safetyGates: Array.isArray(raw.decisionBrief?.safetyGates) ? raw.decisionBrief.safetyGates : d.decisionBrief.safetyGates, evidenceMap: Array.isArray(raw.decisionBrief?.evidenceMap) ? raw.decisionBrief.evidenceMap : d.decisionBrief.evidenceMap },
+    decisionBrief: { ...d.decisionBrief, ...(raw.decisionBrief || {}), facts: Array.isArray(raw.decisionBrief?.facts) ? raw.decisionBrief.facts : d.decisionBrief.facts, patientReported: Array.isArray(raw.decisionBrief?.patientReported) ? raw.decisionBrief.patientReported : d.decisionBrief.patientReported, safetyGates: Array.isArray(raw.decisionBrief?.safetyGates) ? raw.decisionBrief.safetyGates : d.decisionBrief.safetyGates, evidenceMap: Array.isArray(raw.decisionBrief?.evidenceMap) ? raw.decisionBrief.evidenceMap : d.decisionBrief.evidenceMap, evidence: d.decisionBrief.evidence },
     education: { ...d.education, ...(raw.education || {}) },
     home: { ...d.home, ...(raw.home || {}) },
     alertResolution: { ...d.alertResolution, ...(raw.alertResolution || {}) },
