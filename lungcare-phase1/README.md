@@ -1,6 +1,6 @@
 # LungCare Oncology · Phase 1 Demo
 
-Static web prototype for the Phase 1 end-to-end outpatient follow-up flow:
+Static web prototype for the connected clinical decision-support flow (Phase 1 + Decision Brief evidence map), not an EMR:
 
 Patient previsit → Nurse intake → Doctor plan → Nurse teach-back → Patient home-care active → Red dyspnea alert.
 
