@@ -2,7 +2,9 @@
 
 Static web prototype for the connected clinical decision-support flow (Phase 1 + Decision Brief evidence map), not an EMR:
 
-Patient previsit → Nurse intake → Doctor plan → Nurse teach-back → Patient home-care active → Red dyspnea alert.
+Patient previsit → Nurse intake → Doctor Decision Brief + Evidence Map → Clinician decision → Nurse teach-back → Patient home-care active → Red dyspnea alert.
+
+Core product boundary: LungCare is a connected clinical decision-support handbook. It surfaces context, provenance, missing data, safety gates and handoff tasks; it is not an EMR, does not sign orders, and does not replace local protocols.
 
 Run locally:
 
