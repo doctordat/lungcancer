@@ -15,4 +15,12 @@ python3 -m http.server 5173
 
 Open: http://localhost:5173
 
+Regression smoke test (no dependencies):
+
+```bash
+node smoke-test.js
+```
+
+The test uses a minimal browser mock and covers state normalization, role boundaries, safety request lifecycle, readiness, and red-alert precedence. It does not replace clinical validation or browser visual testing.
+
 No real patient data. Clinical suggestions are demo-only and require physician confirmation.
