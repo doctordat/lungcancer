@@ -5,6 +5,7 @@ const vm = require('vm');
 const assert = require('assert');
 
 const store = new Map();
+const appRoot = { innerHTML: '' };
 const context = {
   console,
   URLSearchParams,
@@ -19,7 +20,7 @@ const context = {
   location: { search: '?role=doctor' },
   history: { replaceState() {} },
   alert: message => { context.lastAlert = message; },
-  document: { getElementById: () => ({ innerHTML: '' }) }
+  document: { getElementById: () => appRoot }
 };
 vm.createContext(context);
 vm.runInContext(fs.readFileSync(__dirname + '/app.js', 'utf8'), context, { filename: 'app.js' });
@@ -55,6 +56,13 @@ run("state = defaultState(); state.role='doctor'; state.encounterState='doctor-e
 check(run("decisionReady()") === false, 'readiness stays blocked before medication review');
 run("['dose','adherence','toxicity'].forEach(id=>state.medicationSafety.reviewed[id]=true)");
 check(run("decisionReady()") === true, 'readiness opens after medication review');
+
+run("state = defaultState(); state.role='patient'; state.scenario='routine'; resetScenario('red')");
+run("render()");
+check(run("state.scenario") === 'routine', 'patient cannot reset demo scenario');
+check(!appRoot.innerHTML.includes('DEMO / QA SCENARIO'), 'patient does not see demo controls');
+run("state.role='doctor'; resetScenario('red')");
+check(run("state.scenario") === 'red' && run("state.alerts.some(a=>a.type==='red')"), 'clinician can reset demo scenario');
 
 console.log('LungCare smoke test: PASS');
 console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate');
