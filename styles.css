@@ -37,4 +37,17 @@
 .teachback-receipt h3{margin:4px 0 10px;font-size:15px;color:var(--green)}
 .receipt-instructions{display:grid;gap:6px;font-size:13px;line-height:1.45}
 .receipt-instructions>div{padding:6px 10px;background:white;border:1px solid #d9f2e1;border-radius:10px}
+.receipt-mdt{grid-column:1/-1;background:#f5f3ff!important;border-color:#ddd6fe!important}
+.mdt-panel{border-color:#c4b5fd;background:#faf5ff}
+.mdt-header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:14px}
+.mdt-header h3{margin:4px 0;color:#5b21b6}
+.mdt-header p{margin:4px 0;font-size:13px;color:var(--muted)}
+.mdt-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0}
+.mdt-member-card{background:white;border:1px solid #e9d5ff;border-radius:14px;padding:12px}
+.mdt-member-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;border-bottom:1px solid #f3e8ff;padding-bottom:4px}
+.mdt-member-top b{font-size:13px;color:#6b21a8}
+.mdt-opinion{margin:0;font-size:12.5px;line-height:1.45;color:#374151;font-style:italic}
+.mdt-consensus-box{background:#f3e8ff;border:1px solid #d8b4fe;border-radius:14px;padding:12px;margin-top:10px}
+.mdt-consensus-box b{display:block;color:#581c87;font-size:13px;margin-bottom:4px}
+.mdt-consensus-box p{margin:0;font-size:13px;color:#1e1b4b;font-weight:600}
 @media(max-width:1800px){.decision-layout{grid-template-columns:minmax(0,1fr)}.decision-layout aside{grid-column:auto}.top-actions{flex-wrap:wrap}.summary{align-items:flex-start}}@media(max-width:1200px){.decision-layout{grid-template-columns:1fr}.decision-layout aside{grid-column:1/-1}.handoff-grid{grid-template-columns:1fr}.snapshot-grid{grid-template-columns:1fr 1fr}.med-grid{grid-template-columns:1fr 1fr}}@media(max-width:1050px){.app{grid-template-columns:1fr}.side{height:auto;position:static}.flow,.grid.two,.grid.three,.layout,.decision-layout,.brief-columns,.gates{grid-template-columns:1fr}.summary,.top,.red-alert{flex-direction:column}.sticky{position:static}.decision-layout aside{grid-column:auto}}

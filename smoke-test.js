@@ -103,8 +103,23 @@ check(run("state.encounterState") === 'home-care-active', 'encounter state advan
 check(run("state.careLoop.plan.status") === 'active', 'care plan activated');
 check(run("state.education.completedBy") === 'ĐD. Thu Hà', 'education completedBy captured');
 
+// MDT Escalation & Consultation assertions
+run("state = defaultState(); state.role='doctor'; state.encounterState='doctor-examining'");
+check(run("state.mdt.status") === 'not_requested', 'mdt initially not_requested');
+run("requestMdt()");
+check(run("state.mdt.status") === 'scheduled', 'mdt status scheduled after request');
+check(run("state.doctor.decision") === 'Trình MDT / đổi chiến lược', 'doctor decision synced to MDT escalation');
+check(run("state.mdt.panel.length") === 4, 'mdt panel has 4 specialties');
+run("completeMdt()");
+check(run("state.mdt.status") === 'completed' && run("state.mdt.reviewed") === true, 'mdt completed and reviewed');
+check(run("state.mdt.reviewMeta.reviewedBy") === 'BS. Mỹ Linh', 'mdt reviewMeta recorded');
+
+const mdtPersisted = run("JSON.stringify({...state, careLoop:{...state.careLoop, plan:{...state.careLoop.plan, revision:3}}, mdt:{...state.mdt, reviewed:true, reviewMeta:{planId:state.careLoop.plan.planId, revision:2, reviewedBy:'BS. Mỹ Linh'}}})");
+run(`state = normalize(JSON.parse(${JSON.stringify(mdtPersisted)}))`);
+check(run("state.mdt.reviewed") === false && run("state.mdt.reviewMeta") === null, 'normalize invalidates old mdt review on plan revision bump');
+
 console.log('LungCare smoke test: PASS');
-console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate, recist 1.1, ctcae v5.0, teach-back 10-point');
+console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate, recist 1.1, ctcae v5.0, teach-back 10-point, mdt workflow');
 
 function stateValue(key) {
   return run(`Boolean(state.safetyRequests[0] && state.safetyRequests[0].${key})`);
