@@ -225,6 +225,14 @@ const defaultState = () => ({
     reviewed: false,
     reviewMeta: null
   },
+  caregiverSync: {
+    primaryCaregiver: { name: 'Nguyễn Văn Tuấn', relation: 'Con trai', phone: '0918 234 567', active: true },
+    preferences: { alertRed: true, alertYellow: true, alertMissedDose: true, alertTeachbackDone: true },
+    smsHistory: [
+      { id: 'SMS-101', timestamp: '27/08/2026 08:35', type: 'info', recipient: '0918 234 567 (Anh Tuấn)', message: '[LungCare] Bố Minh đã tái khám tuần 6. Bác sĩ xác nhận đáp ứng tốt (PR -34%), tiếp tục phác đồ Osimertinib 80mg.' },
+      { id: 'SMS-102', timestamp: '30/08/2026 10:15', type: 'warning', recipient: '0918 234 567 (Anh Tuấn)', message: '[LungCare Nhắc nhở] Bố Minh vừa báo quên uống liều thuốc sáng nay. Nhắc Bố uống bù trước 20:00 tối nay nếu có thể.' }
+    ]
+  },
   alerts: []
 });
 
@@ -247,6 +255,11 @@ function normalize(raw) {
     biomarkers: { ...d.biomarkers, ...(raw.biomarkers || {}), resistanceMarkers: Array.isArray(raw.biomarkers?.resistanceMarkers) ? raw.biomarkers.resistanceMarkers : d.biomarkers.resistanceMarkers, ctDnaTrend: Array.isArray(raw.biomarkers?.ctDnaTrend) ? raw.biomarkers.ctDnaTrend : d.biomarkers.ctDnaTrend, reviewMeta: (raw.biomarkers?.reviewMeta && raw.biomarkers.reviewMeta.planId===careLoop.plan.planId && raw.biomarkers.reviewMeta.revision===careLoop.plan.revision) ? raw.biomarkers.reviewMeta : null, reviewed: Boolean(raw.biomarkers?.reviewed && raw.biomarkers?.reviewMeta?.planId===careLoop.plan.planId && raw.biomarkers?.reviewMeta?.revision===careLoop.plan.revision) },
     ddiChecker: { ...d.ddiChecker, ...(raw.ddiChecker || {}), concomitantMeds: Array.isArray(raw.ddiChecker?.concomitantMeds) ? raw.ddiChecker.concomitantMeds : d.ddiChecker.concomitantMeds, interactions: Array.isArray(raw.ddiChecker?.interactions) ? raw.ddiChecker.interactions : d.ddiChecker.interactions, reviewMeta: (raw.ddiChecker?.reviewMeta && raw.ddiChecker.reviewMeta.planId===careLoop.plan.planId && raw.ddiChecker.reviewMeta.revision===careLoop.plan.revision) ? raw.ddiChecker.reviewMeta : null, reviewed: Boolean(raw.ddiChecker?.reviewed && raw.ddiChecker?.reviewMeta?.planId===careLoop.plan.planId && raw.ddiChecker?.reviewMeta?.revision===careLoop.plan.revision) },
     rehabNutrition: { ...d.rehabNutrition, ...(raw.rehabNutrition || {}), exercises: Array.isArray(raw.rehabNutrition?.exercises) ? raw.rehabNutrition.exercises : d.rehabNutrition.exercises, reviewMeta: (raw.rehabNutrition?.reviewMeta && raw.rehabNutrition.reviewMeta.planId===careLoop.plan.planId && raw.rehabNutrition.reviewMeta.revision===careLoop.plan.revision) ? raw.rehabNutrition.reviewMeta : null, reviewed: Boolean(raw.rehabNutrition?.reviewed && raw.rehabNutrition?.reviewMeta?.planId===careLoop.plan.planId && raw.rehabNutrition?.reviewMeta?.revision===careLoop.plan.revision) },
+    caregiverSync: {
+      primaryCaregiver: { ...d.caregiverSync.primaryCaregiver, ...(raw.caregiverSync?.primaryCaregiver || {}) },
+      preferences: { ...d.caregiverSync.preferences, ...(raw.caregiverSync?.preferences || {}) },
+      smsHistory: Array.isArray(raw.caregiverSync?.smsHistory) ? raw.caregiverSync.smsHistory : d.caregiverSync.smsHistory
+    },
     medicationSafety: { ...d.medicationSafety, ...(raw.medicationSafety || {}), reviewed:{...d.medicationSafety.reviewed,...(raw.medicationSafety?.reviewed||{})}, reviewMeta:{...d.medicationSafety.reviewMeta,...(raw.medicationSafety?.reviewMeta||{})}, checks:Array.isArray(raw.medicationSafety?.checks)?raw.medicationSafety.checks:d.medicationSafety.checks },
     careLoop,
     intake: { ...d.intake, ...(raw.intake || {}) },
@@ -534,6 +547,28 @@ function submitProCheckin(){
   render();
 }
 
+function dispatchCaregiverSms(type, text){
+  const cg = state.caregiverSync;
+  if(!cg.primaryCaregiver.active) return;
+  const msgObj = {
+    id: `SMS-${Date.now()}`,
+    timestamp: new Date().toLocaleString('vi-VN', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}),
+    type,
+    recipient: `${cg.primaryCaregiver.phone} (${cg.primaryCaregiver.name})`,
+    message: text
+  };
+  cg.smsHistory.unshift(msgObj);
+  event('CAREGIVER_SMS_DISPATCHED', { detail: `Đã gửi SMS tới ${cg.primaryCaregiver.name}: ${text.slice(0, 50)}...` });
+}
+
+function sendCustomCaregiverSms(customMsg){
+  const cg = state.caregiverSync;
+  if(!customMsg.trim()) return;
+  dispatchCaregiverSms('info', `[LungCare] ${customMsg.trim()}`);
+  save();
+  render();
+}
+
 function toggleRehabExercise(idx){
   state.rehabNutrition.exercises[idx].completed = !state.rehabNutrition.exercises[idx].completed;
   event('PULMONARY_REHAB_UPDATED', { detail: `Tập thở: ${state.rehabNutrition.exercises[idx].name} -> ${state.rehabNutrition.exercises[idx].completed ? 'Đã tập' : 'Chưa tập'}` });
@@ -571,6 +606,55 @@ function patientRehabSection(){
   </section>`;
 }
 
+function caregiverSyncPanel(){
+  const cg = state.caregiverSync;
+  return `<section class="card caregiver-card"><small>FAMILY CAREGIVER SYNC · ĐỒNG HÀNH NGƯỜI NHÀ & SMS BÁO ĐỘNG</small>
+    <div class="caregiver-header">
+      <div>
+        <h3>Người chăm sóc chính: ${cg.primaryCaregiver.name} (${cg.primaryCaregiver.relation})</h3>
+        <p>Số điện thoại nhận tin: <strong>${cg.primaryCaregiver.phone}</strong> · Trạng thái: ${cg.primaryCaregiver.active ? '🟢 Đang kết nối' : '⚪ Tạm dừng'}</p>
+        <small>Tự động gửi tin nhắn SMS/Zalo khi người bệnh quên liều hoặc xuất hiện triệu chứng báo động đỏ tại nhà</small>
+      </div>
+      <div>
+        <button class="outline" onclick="testCaregiverAlert()">🔔 Gửi SMS thử nghiệm</button>
+      </div>
+    </div>
+
+    <div class="caregiver-grid">
+      <div class="caregiver-box">
+        <b>1. Cấu hình nhận thông báo tự động (Alert Rules):</b>
+        <div class="caregiver-prefs">
+          <label><input type="checkbox" ${cg.preferences.alertRed ? 'checked' : ''} onchange="update(['caregiverSync','preferences','alertRed'],this.checked)"/> Khẩn cấp: Khó thở / Cảnh báo đỏ (Gửi ngay)</label>
+          <label><input type="checkbox" ${cg.preferences.alertMissedDose ? 'checked' : ''} onchange="update(['caregiverSync','preferences','alertMissedDose'],this.checked)"/> Nhắc nhở: Báo quên liều thuốc hôm nay</label>
+          <label><input type="checkbox" ${cg.preferences.alertYellow ? 'checked' : ''} onchange="update(['caregiverSync','preferences','alertYellow'],this.checked)"/> Theo dõi: Tiêu chảy ≥ 4 lần hoặc có sốt</label>
+          <label><input type="checkbox" ${cg.preferences.alertTeachbackDone ? 'checked' : ''} onchange="update(['caregiverSync','preferences','alertTeachbackDone'],this.checked)"/> Bàn giao: Tóm tắt xuất viện sau khi ĐD teach-back</label>
+        </div>
+      </div>
+
+      <div class="caregiver-box">
+        <b>2. Hộp thư tin nhắn SMS/Zalo đã gửi (${cg.smsHistory.length} tin nhắn):</b>
+        <div class="sms-history-list">
+          ${cg.smsHistory.slice(0, 4).map(sms => `
+            <div class="sms-bubble ${sms.type}">
+              <div class="sms-top">
+                <b>${sms.recipient}</b>
+                <small>${sms.timestamp}</small>
+              </div>
+              <p>${sms.message}</p>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  </section>`;
+}
+
+function testCaregiverAlert(){
+  dispatchCaregiverSms('info', `[LungCare Thử nghiệm] Hệ thống thông báo kết nối thành công với Anh Tuấn (con trai). Bố Minh đang được theo dõi sát tại nhà.`);
+  save();
+  render();
+}
+
 function patient(){
   const active = state.encounterState === 'home-care-active';
   return shell(`${patientSummary()}<div class="grid two">
@@ -579,6 +663,7 @@ function patient(){
   </div>
   ${patientDailyCheckin()}
   ${patientRehabSection()}
+  ${caregiverSyncPanel()}
   <div class="grid two">
     <section class="card"><small>KHAI NHANH TÁI KHÁM</small><label>Mục tiêu lần này<input value="${state.previsit.goal}" oninput="update(['previsit','goal'],this.value)" placeholder="Đánh giá đáp ứng, độc tính, cấp thuốc..." /></label><label>Thay đổi từ lần trước<textarea oninput="update(['previsit','changes'],this.value)" placeholder="VD: tiêu chảy 3-4 lần/ngày, ban da nhẹ...">${state.previsit.changes}</textarea></label>${button('Gửi thông tin cho khoa','advance("previsit-submitted","PREVISIT_SUBMITTED")','primary')}</section>
     <section class="card dangerZone"><small>BÁO TRIỆU CHỨNG</small><h3>Triage độc tính tại nhà</h3><p>Chọn nhanh triệu chứng. Nếu khó thở khi nghỉ/đau ngực/lơ mơ → popup đỏ gửi cả BS và ĐD.</p><div class="symptoms">${['Tiêu chảy','Ban da','Mệt','Sốt','Đau ngực','Khó thở khi nghỉ'].map(s=>button(s, s==='Khó thở khi nghỉ'?'redDyspnea()':'yellowSymptom("'+s+'")', s==='Khó thở khi nghỉ'?'danger':'outline')).join('')}</div></section>
@@ -1254,8 +1339,23 @@ function activityLog(){ return `<section class="card"><small>EVENT / AUDIT TIMEL
 
 function completeSymptomCheck(){ if(['red','yellow'].includes(state.triage.status) && state.triage.actionStatus!=='resolved') { alert('Còn triage cần follow-up; chưa thể đóng symptom check.'); return; } state.careLoop.symptomCheck={completed:true,at:new Date().toLocaleString('vi-VN'),summary:'Người bệnh xác nhận đã hoàn tất kiểm tra triệu chứng hôm nay.'}; state.careLoop.tasks.find(t=>t.id==='symptom').status='done'; event('DAILY_SYMPTOM_CHECK_COMPLETED',{detail:'Patient-reported daily symptom check'}); save(); render(); }
 function takeMed(){ state.home.medicationTakenToday = true; state.careLoop.tasks.find(t=>t.id==='med').status='done'; state.patient.adherence.taken = Math.min(42, state.patient.adherence.taken + 1); event('MEDICATION_TAKEN', {detail:'Người bệnh xác nhận đã uống osimertinib hôm nay'}); save(); render(); }
-function missDose(){ state.home.missedToday = true; state.patient.adherence.missed += 1; event('MEDICATION_MISSED', {detail:'Demo: hiện hướng dẫn xử trí quên liều và báo điều dưỡng nếu lặp lại'}); save(); render(); }
-function redDyspnea(){ state.alertResolution={acknowledged:false,assessment:'',action:'',clinicianReason:'',status:'open'}; state.alertHandled=false; state.alerts.unshift({type:'red', name:'TOXICITY_REPORTED_RED', symptom:'Khó thở khi nghỉ', detail:'Người bệnh báo khó thở khi nghỉ/không nói trọn câu. Mục tiêu phản hồi < 5 phút.', at:new Date().toLocaleTimeString('vi-VN')}); save(); render(); }
+function missDose(){
+  state.home.missedToday = true;
+  state.patient.adherence.missed += 1;
+  event('MEDICATION_MISSED', {detail:'Demo: hiện hướng dẫn xử trí quên liều và báo điều dưỡng nếu lặp lại'});
+  dispatchCaregiverSms('warning', `[LungCare Khẩn] Bố Minh vừa thông báo quên liều Osimertinib 80mg sáng nay. Nhắc Bố uống bù trước 20:00 tối nay nếu có thể (không uống gấp đôi).`);
+  save();
+  render();
+}
+
+function redDyspnea(){
+  state.alertResolution={acknowledged:false,assessment:'',action:'',clinicianReason:'',status:'open'};
+  state.alertHandled=false;
+  state.alerts.unshift({type:'red', name:'TOXICITY_REPORTED_RED', symptom:'Khó thở khi nghỉ', detail:'Người bệnh báo khó thở khi nghỉ/không nói trọn câu. Mục tiêu phản hồi < 5 phút.', at:new Date().toLocaleTimeString('vi-VN')});
+  dispatchCaregiverSms('danger', `[LUNGCARE CẢNH BÁO ĐỎ] Bố Minh đang có dấu hiệu KHÓ THỞ KHI NGHỈ. Đội điều trị bệnh viện đang tiếp nhận. Gia đình cần kiểm tra Bố ngay và gọi Hotline Cấp cứu 028 3844 xxxx nếu Bố mệt lả.`);
+  save();
+  render();
+}
 function yellowSymptom(s){ state.alerts.unshift({type:'yellow', name:'TOXICITY_REPORTED_YELLOW', symptom:s, detail:'Điều dưỡng gọi lại trong ngày, bác sĩ xem nếu nặng lên.', at:new Date().toLocaleTimeString('vi-VN')}); save(); render(); }
 function acknowledgeAlert(){ state.alertResolution.acknowledged=true; state.alertResolution.status='acknowledged'; event('RED_ALERT_ACKNOWLEDGED',{detail:'Đã tiếp nhận cảnh báo; quyết định thường quy vẫn bị khóa cho tới khi có đánh giá và xác nhận của bác sĩ.'}); save(); render(); }
 function resolveAlert(){ if(!state.alertResolution.assessment.trim()||!state.alertResolution.action.trim()||!state.alertResolution.clinicianReason.trim()) return; state.alertResolution.status='resolved'; state.alertHandled=true; event('RED_ALERT_CLINICIAN_RESOLVED',{detail:`Đánh giá: ${state.alertResolution.assessment} · Lý do BS: ${state.alertResolution.clinicianReason}`}); save(); render(); }
