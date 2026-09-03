@@ -131,8 +131,26 @@ run("updateTodayCheckin('dyspnea', true)");
 run("submitProCheckin()");
 check(run("hasUnresolvedRed()") === true, 'dyspnea auto-triggers red alert');
 
+// SOAP Summary & Clinical Modules assertions
+run("state = defaultState(); state.role='doctor'");
+const soap = run("generateSoapSummary()");
+check(soap.includes('[S] CHỦ QUAN') && soap.includes('[O] KHÁCH QUAN') && soap.includes('[A] ĐÁNH GIÁ') && soap.includes('[P] KẾ HOẠCH XỬ TRÍ'), 'SOAP summary generated with all 4 quadrants');
+check(soap.includes('Osimertinib 80'), 'SOAP summary includes correct medication');
+
+// Safety Labs (QTc & Electrolytes)
+check(run("state.safetyLabs.qtc.value") === 432, 'safetyLabs qtc value is 432ms');
+run("reviewSafetyLabs()");
+check(run("state.safetyLabs.reviewed") === true, 'safety labs marked as reviewed');
+check(run("state.medicationSafety.reviewed['labs']") === true, 'medication safety labs synced');
+
+// Biomarker Evolution (ctDNA & Resistance)
+check(run("state.biomarkers.resistanceMarkers.length") === 5, 'biomarkers resistance panel has 5 genes');
+run("reviewBiomarkers()");
+check(run("state.biomarkers.reviewed") === true, 'biomarkers marked as reviewed');
+check(run("state.decisionBrief.evidenceMap.find(x=>x.id==='molecular').reviewed") === true, 'evidence map molecular synced');
+
 console.log('LungCare smoke test: PASS');
-console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate, recist 1.1, ctcae v5.0, teach-back 10-point, mdt workflow, pro diary & trend');
+console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate, recist 1.1, ctcae v5.0, teach-back 10-point, mdt workflow, pro diary, soap summary, safety labs, biomarkers');
 
 function stateValue(key) {
   return run(`Boolean(state.safetyRequests[0] && state.safetyRequests[0].${key})`);

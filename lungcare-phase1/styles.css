@@ -80,4 +80,48 @@
 .rash-tag.danger{background:#fee2e2;color:#b91c1c}
 .pro-bar-med{font-size:10px;font-weight:750;margin-top:2px}
 .pro-trend-summary{background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:10px;font-size:13px;color:#1e40af}
+.safety-labs-card{border-color:#6ee7b7;background:#f0fdf4}
+.safety-labs-header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:12px}
+.safety-labs-header h3{margin:4px 0;color:#065f46}
+.safety-labs-header p{margin:4px 0;font-size:13px;color:var(--muted)}
+.safety-labs-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px}
+.lab-tile{background:white;border:1px solid var(--line);border-radius:14px;padding:12px}
+.lab-tile.normal{border-color:#a7f3d0}
+.lab-tile.danger{border-color:#fca5a5;background:#fef2f2}
+.lab-tile small{display:block;color:var(--muted);font-size:11px;font-weight:750}
+.lab-tile b{display:block;font-size:16px;margin:4px 0;color:#0f172a}
+.lab-tile span{display:block;font-size:11.5px;color:#059669;font-weight:600}
+.lab-tile.danger span{color:#dc2626}
+.biomarker-card{border-color:#cbd5e1;background:#f8fafc}
+.biomarker-header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:12px}
+.biomarker-header h3{margin:4px 0;color:#1e293b}
+.biomarker-header p{margin:4px 0;font-size:13px;color:var(--muted)}
+.biomarker-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:10px}
+.biomarker-box{background:white;border:1px solid var(--line);border-radius:14px;padding:12px}
+.biomarker-box>b{display:block;margin-bottom:10px;font-size:13px;color:#334155}
+.ctdna-timeline{display:grid;gap:8px}
+.ctdna-point{padding:8px 10px;background:#f8fafc;border:1px solid var(--line);border-radius:10px;display:flex;justify-content:space-between;align-items:center}
+.ctdna-point.current{border-color:#86efac;background:#f0fdf4}
+.ctdna-point b{color:#15803d}
+.ctdna-point small{color:var(--muted);font-size:11px}
+.ctdna-point span{font-size:11.5px;color:#0f172a}
+.biomarker-table{width:100%;border-collapse:collapse;font-size:12px}
+.biomarker-table th{background:#f1f5f9;padding:6px 8px;border:1px solid var(--line);text-align:left}
+.biomarker-table td{padding:6px 8px;border:1px solid var(--line)}
+.printable-handout{display:none}
+@media print{
+  body *{visibility:hidden}
+  .printable-handout, .printable-handout *{visibility:visible}
+  .printable-handout{display:block;position:absolute;left:0;top:0;width:100%;padding:20px;color:#000;background:#fff}
+  .print-header{border-bottom:2px solid #000;padding-bottom:10px;margin-bottom:14px;display:flex;justify-content:space-between}
+  .print-header h2{margin:0;font-size:18pt}
+  .print-section{border:1px solid #000;border-radius:8px;padding:10px;margin:10px 0}
+  .print-section.primary-med{background:#f0fdf4;border-width:2px}
+  .print-section.danger-box{background:#fef2f2;border-color:#dc2626}
+  .print-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}
+  .print-box{border:1px solid #000;border-radius:8px;padding:8px}
+  .print-box h4{margin:0 0 6px}
+  .print-footer{margin-top:20px;border-top:1px solid #000;padding-top:10px}
+  .hotline-box{font-size:14pt;font-weight:bold;margin-top:10px;color:#b91c1c}
+}
 @media(max-width:1800px){.decision-layout{grid-template-columns:minmax(0,1fr)}.decision-layout aside{grid-column:auto}.top-actions{flex-wrap:wrap}.summary{align-items:flex-start}}@media(max-width:1200px){.decision-layout{grid-template-columns:1fr}.decision-layout aside{grid-column:1/-1}.handoff-grid{grid-template-columns:1fr}.snapshot-grid{grid-template-columns:1fr 1fr}.med-grid{grid-template-columns:1fr 1fr}}@media(max-width:1050px){.app{grid-template-columns:1fr}.side{height:auto;position:static}.flow,.grid.two,.grid.three,.layout,.decision-layout,.brief-columns,.gates{grid-template-columns:1fr}.summary,.top,.red-alert{flex-direction:column}.sticky{position:static}.decision-layout aside{grid-column:auto}}
