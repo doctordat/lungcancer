@@ -130,6 +130,25 @@ const defaultState = () => ({
   },
   education: { identity: false, emr: false, allergy: false, meds: false, missedDose: false, toxicity: false, redflags: false, teachback: false, followup: false, contact: false, completedAt: null, completedBy: null, nurseNote: '' },
   home: { medicationTakenToday: false, missedToday: false },
+  proDiary: {
+    entries: [
+      { date: '27/08', medTaken: true, diarrheaCount: 2, rashGrade: 1, fever: false, dyspnea: false, note: 'Ăn uống bình thường' },
+      { date: '28/08', medTaken: true, diarrheaCount: 3, rashGrade: 1, fever: false, dyspnea: false, note: 'Đi ngoài phân lỏng sau ăn' },
+      { date: '29/08', medTaken: true, diarrheaCount: 4, rashGrade: 2, fever: false, dyspnea: false, note: 'Uống 1 gói Oresol + 1 viên Loperamide' },
+      { date: '30/08', medTaken: false, diarrheaCount: 3, rashGrade: 1, fever: false, dyspnea: false, note: 'Quên uống thuốc buổi sáng, uống bù buổi chiều' },
+      { date: '31/08', medTaken: true, diarrheaCount: 2, rashGrade: 1, fever: false, dyspnea: false, note: 'Đỡ tiêu chảy hơn' },
+      { date: '01/09', medTaken: true, diarrheaCount: 1, rashGrade: 1, fever: false, dyspnea: false, note: 'Ban đỏ mặt nhẹ' },
+      { date: '02/09', medTaken: true, diarrheaCount: 2, rashGrade: 1, fever: false, dyspnea: false, note: 'Ổn định, sẵn sàng tái khám' }
+    ],
+    todayCheckin: {
+      medTaken: true,
+      diarrheaCount: 2,
+      rashGrade: 1,
+      fever: false,
+      dyspnea: false,
+      note: ''
+    }
+  },
   alerts: []
 });
 
@@ -155,6 +174,10 @@ function normalize(raw) {
     decisionBrief: { ...d.decisionBrief, ...(raw.decisionBrief || {}), facts: Array.isArray(raw.decisionBrief?.facts) ? raw.decisionBrief.facts : d.decisionBrief.facts, patientReported: Array.isArray(raw.decisionBrief?.patientReported) ? raw.decisionBrief.patientReported : d.decisionBrief.patientReported, safetyGates: Array.isArray(raw.decisionBrief?.safetyGates) ? raw.decisionBrief.safetyGates : d.decisionBrief.safetyGates, readiness: { ...d.decisionBrief.readiness, ...(raw.decisionBrief?.readiness || {}) }, lens: { ...d.decisionBrief.lens, ...(raw.decisionBrief?.lens || {}), uncertainties: Array.isArray(raw.decisionBrief?.lens?.uncertainties) ? raw.decisionBrief.lens.uncertainties : d.decisionBrief.lens.uncertainties }, evidenceMap: Array.isArray(raw.decisionBrief?.evidenceMap) ? raw.decisionBrief.evidenceMap : d.decisionBrief.evidenceMap, evidence: d.decisionBrief.evidence },
     education: { ...d.education, ...(raw.education || {}) },
     home: { ...d.home, ...(raw.home || {}) },
+    proDiary: {
+      entries: Array.isArray(raw.proDiary?.entries) ? raw.proDiary.entries : d.proDiary.entries,
+      todayCheckin: { ...d.proDiary.todayCheckin, ...(raw.proDiary?.todayCheckin || {}) }
+    },
     alertResolution: { ...d.alertResolution, ...(raw.alertResolution || {}) },
     alerts: Array.isArray(raw.alerts) ? raw.alerts : []
   };
@@ -213,12 +236,110 @@ function flowRibbon(){ return `<section class="flow">${FLOW.slice(1).map(([k,l],
 
 function patientSummary(){ const p=state.patient; return `<section class="summary card"><div><small>CA XUYÊN SUỐT</small><h2>${p.name}</h2><p>${p.age} tuổi · ${p.sex} · ECOG ${p.ecog} · ${p.diagnosis}</p></div><div class="facts">${pill(p.stage,'purple')}${pill(p.tnm)}${pill(p.biomarker,'green')}${pill(p.therapy,'blue')}${pill(`Tuân thủ ${pct()}%`,'green')}</div></section>`; }
 
+function patientDailyCheckin(){
+  const today = state.proDiary.todayCheckin;
+  return `<section class="card pro-diary-card">
+    <small>NHẬT KÝ SỨC KHỎE HẰNG NGÀY (PRO-CTCAE 30 GIÂY)</small>
+    <h3>Hôm nay chú Minh cảm thấy thế nào?</h3>
+    <p>Ghi nhận nhanh mỗi tối để Bác sĩ & Điều dưỡng theo dõi sát giữa 2 đợt khám.</p>
+    
+    <div class="pro-form-grid">
+      <div class="pro-field">
+        <label><b>1. Uống thuốc hôm nay:</b></label>
+        <div class="pro-buttons">
+          <button class="${today.medTaken ? 'primary' : 'outline'}" onclick="updateTodayCheckin('medTaken', true)">Đã uống 1 viên (80mg)</button>
+          <button class="${!today.medTaken ? 'danger' : 'outline'}" onclick="updateTodayCheckin('medTaken', false)">Chưa uống / Quên</button>
+        </div>
+      </div>
+
+      <div class="pro-field">
+        <label><b>2. Số lần đi ngoài phân lỏng hôm nay:</b></label>
+        <div class="pro-buttons">
+          <button class="${today.diarrheaCount <= 1 ? 'primary' : 'outline'}" onclick="updateTodayCheckin('diarrheaCount', 1)">Bình thường / 0-1 lần</button>
+          <button class="${today.diarrheaCount >= 2 && today.diarrheaCount <= 3 ? 'primary' : 'outline'}" onclick="updateTodayCheckin('diarrheaCount', 2)">2 - 3 lần</button>
+          <button class="${today.diarrheaCount >= 4 ? 'danger' : 'outline'}" onclick="updateTodayCheckin('diarrheaCount', 4)">≥ 4 lần (Nhiều)</button>
+        </div>
+      </div>
+
+      <div class="pro-field">
+        <label><b>3. Ban đỏ / Mụn trên da:</b></label>
+        <div class="pro-buttons">
+          <button class="${today.rashGrade === 0 ? 'primary' : 'outline'}" onclick="updateTodayCheckin('rashGrade', 0)">Không có</button>
+          <button class="${today.rashGrade === 1 ? 'primary' : 'outline'}" onclick="updateTodayCheckin('rashGrade', 1)">Nhẹ (vài nốt mặt/lưng)</button>
+          <button class="${today.rashGrade >= 2 ? 'danger' : 'outline'}" onclick="updateTodayCheckin('rashGrade', 2)">Nhiều / Ngứa rát</button>
+        </div>
+      </div>
+
+      <div class="pro-field">
+        <label><b>4. Dấu hiệu bất thường:</b></label>
+        <div class="pro-checkboxes">
+          <label><input type="checkbox" ${today.fever ? 'checked' : ''} onchange="updateTodayCheckin('fever', this.checked)"/> Có sốt (>38°C)</label>
+          <label><input type="checkbox" ${today.dyspnea ? 'checked' : ''} onchange="updateTodayCheckin('dyspnea', this.checked)"/> Có khó thở mới xuất hiện</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions" style="margin-top:14px">
+      ${button('Lưu nhật ký hôm nay & Gửi đội điều trị', 'submitProCheckin()', 'primary')}
+    </div>
+  </section>`;
+}
+
+function updateTodayCheckin(field, val){
+  state.proDiary.todayCheckin[field] = val;
+  if(field === 'medTaken' && val === true){
+    state.home.medicationTakenToday = true;
+    const medTask = state.careLoop.tasks.find(t=>t.id==='med');
+    if(medTask) medTask.status = 'done';
+  }
+  save();
+  render();
+}
+
+function submitProCheckin(){
+  const t = state.proDiary.todayCheckin;
+  const now = new Date().toLocaleDateString('vi-VN', {day:'2-digit', month:'2-digit'});
+  const existingIdx = state.proDiary.entries.findIndex(e => e.date === now);
+  const entry = {
+    date: now,
+    medTaken: t.medTaken,
+    diarrheaCount: t.diarrheaCount,
+    rashGrade: t.rashGrade,
+    fever: t.fever,
+    dyspnea: t.dyspnea,
+    note: t.note || (t.diarrheaCount >= 4 ? 'Tiêu chảy nhiều cần chú ý' : 'Ghi nhận hàng ngày')
+  };
+  if(existingIdx >= 0){
+    state.proDiary.entries[existingIdx] = entry;
+  } else {
+    state.proDiary.entries.push(entry);
+  }
+
+  // Tự động kích hoạt Triage nếu có dấu hiệu nặng
+  if(t.dyspnea){
+    redDyspnea();
+  } else if(t.diarrheaCount >= 4 || t.fever){
+    state.triage.symptom = t.diarrheaCount >= 4 ? 'Tiêu chảy' : 'Sốt';
+    state.triage.severity = 3;
+    state.triage.status = 'yellow';
+    state.triage.escalationId = `ESC-${Date.now()}`;
+    state.triage.actionStatus = 'new';
+    state.triage.submittedAt = new Date().toLocaleString('vi-VN');
+    event('TOXICITY_REPORTED_YELLOW', { detail: `Cảnh báo từ nhật ký PRO: ${state.triage.symptom} mức độ 3/4` });
+  }
+
+  event('PATIENT_PRO_CHECKIN_SUBMITTED', { detail: `Nhật ký PRO: Tiêu chảy ${t.diarrheaCount} lần, Ban da G${t.rashGrade}` });
+  save();
+  render();
+}
+
 function patient(){
   const active = state.encounterState === 'home-care-active';
   return shell(`${patientSummary()}<div class="grid two">
     <section class="card hero"><small>TÁI KHÁM HÔM NAY · ${state.patient.followUp}</small><h2>${active ? 'Kế hoạch tại nhà đã kích hoạt' : 'Chuẩn bị trước khám'}</h2><p>${active ? 'Điều dưỡng đã teach-back. Theo dõi thuốc, độc tính và lịch tái khám bắt đầu từ hôm nay.' : 'Khai nhanh thay đổi từ lần trước để điều dưỡng tiếp nhận trước khi bác sĩ khám.'}</p>${!can('previsit-submitted') ? button('Xác nhận lịch & khai nhanh', 'advance("previsit-submitted","PREVISIT_SUBMITTED")', 'primary') : pill('Đã gửi cho điều dưỡng','green')}</section>
     <section class="card"><small>THUỐC HÔM NAY</small><h3>Osimertinib 80 mg</h3><p>Uống 1 viên mỗi ngày, không nghiền viên. Demo CDS: chú ý tiêu chảy, ban da, khó thở mới.</p><div class="actions">${button(state.home.medicationTakenToday?'Đã ghi nhận uống':'Đánh dấu đã uống','takeMed()','primary')}${button('Báo quên liều','missDose()','outline')}</div><meter min="0" max="42" value="${state.patient.adherence.taken}"></meter><small>${state.patient.adherence.taken}/${state.patient.adherence.total} liều · quên ${state.patient.adherence.missed}</small></section>
   </div>
+  ${patientDailyCheckin()}
   <div class="grid two">
     <section class="card"><small>KHAI NHANH TÁI KHÁM</small><label>Mục tiêu lần này<input value="${state.previsit.goal}" oninput="update(['previsit','goal'],this.value)" placeholder="Đánh giá đáp ứng, độc tính, cấp thuốc..." /></label><label>Thay đổi từ lần trước<textarea oninput="update(['previsit','changes'],this.value)" placeholder="VD: tiêu chảy 3-4 lần/ngày, ban da nhẹ...">${state.previsit.changes}</textarea></label>${button('Gửi thông tin cho khoa','advance("previsit-submitted","PREVISIT_SUBMITTED")','primary')}</section>
     <section class="card dangerZone"><small>BÁO TRIỆU CHỨNG</small><h3>Triage độc tính tại nhà</h3><p>Chọn nhanh triệu chứng. Nếu khó thở khi nghỉ/đau ngực/lơ mơ → popup đỏ gửi cả BS và ĐD.</p><div class="symptoms">${['Tiêu chảy','Ban da','Mệt','Sốt','Đau ngực','Khó thở khi nghỉ'].map(s=>button(s, s==='Khó thở khi nghỉ'?'redDyspnea()':'yellowSymptom("'+s+'")', s==='Khó thở khi nghỉ'?'danger':'outline')).join('')}</div></section>
@@ -510,7 +631,44 @@ function completeMdt(){
   render();
 }
 
-function doctor(){ return shell(`${patientSummary()}${medicationSafetyBrief()}${recistAssessmentBrief()}${ctcaeToxicityGuide()}${mdtConsultationPanel()}${safetyQueue()}${doctorCareSnapshot()}${escalationReview()}${triageHandoff()}${doctorPatientVoice()}<div class="decision-layout"><section class="card"><small>DECISION BRIEF · TUẦN 6</small><h2>Tiếp tục điều trị hay cần đánh giá thêm?</h2><p class="lead">Bản tóm tắt cho một quyết định — không phải bệnh án. Mọi gợi ý cần bác sĩ xác nhận.</p>${patientVoice()}<div class="decision-lens"><small>DECISION LENS · FRAMING MÔ PHỎNG</small><h3>Câu hỏi lần khám</h3><b>Có thể tiếp tục liều hiện tại trong khi hoàn thiện dữ liệu an toàn và đáp ứng không?</b><div class="lens-grid"><div><small>Tín hiệu ủng hộ</small><p>Tuân thủ tốt · molecular phù hợp · độc tính demo G1–2</p></div><div><small>Next-best-information</small><p>CT tuần 8 · ECG/QTc · điện giải · xác minh toxicity trực tiếp</p></div></div><h3>Điểm bất định cần ghi nhận</h3>${uncertainties()}</div><div class="brief-columns"><div><h3>Dữ kiện mô phỏng</h3>${briefFacts(state.decisionBrief.facts,'fact')}</div><div><h3>Người bệnh báo cáo</h3>${briefFacts(state.decisionBrief.patientReported,'reported')}</div></div><h3>Evidence map · bấm từng mục để xác nhận đã review</h3>${evidenceMap()}${readinessPanel()}<h3>Safety gates</h3><div class="gates">${state.decisionBrief.safetyGates.map(g=>`<div class="gate ${g.status}"><span>${g.status==='ready'||g.status==='clear'?'✓':'!'}</span><div><b>${g.label}</b><small>${g.detail}</small></div></div>`).join('')}</div></section><section class="card"><small>CDS OPTIONS · KHÔNG PHẢI Y LỆNH</small><h2>Các hướng xử trí để bác sĩ cân nhắc</h2>${decisionOptions()}<label>Lý do quyết định / lý do từ chối gợi ý<textarea oninput="update(['doctor','decisionReason'],this.value)" placeholder="Bắt buộc ghi lý do trước khi xác nhận">${state.doctor.decisionReason}</textarea></label><div class="actions">${can('ready-for-doctor') ? button('Nhận ca','advance("doctor-examining","DOCTOR_ACCEPTED_CASE")','outline') : button('Chờ ĐD hoàn tất tiếp nhận','void(0)','disabled')}${hasUnresolvedRed() ? button('Đang có cảnh báo đỏ · phải xử trí trước','void(0)','disabled') : !decisionReady() ? button('Review evidence + xác nhận data gap trước','void(0)','disabled') : can('doctor-examining') && state.doctor.decisionReason.trim() ? button('Xác nhận quyết định · tạo handoff','confirmDecision()','primary') : button('Cần nhận ca + ghi lý do','void(0)','disabled')}</div></section><aside class="sticky"><section class="card evidence"><small>NGUỒN & PHIÊN BẢN</small><h3>${state.decisionBrief.evidence.title}</h3><p>${state.decisionBrief.evidence.version}</p><div class="warning">${state.decisionBrief.evidence.note}</div><hr><b>Dữ liệu còn thiếu</b><ul>${state.decisionBrief.safetyGates.filter(g=>g.status==='missing').map(g=>`<li>${g.label}</li>`).join('')}</ul></section></aside></div>${activityLog()}`); }
+function proTrendDashboard(){
+  const entries = state.proDiary.entries;
+  if(!entries.length) return '';
+  return `<section class="card pro-trend-card"><small>PATIENT-REPORTED OUTCOMES (PRO) · XU HƯỚNG SỨC KHỎE 7 NGÀY GẦN NHẤT</small>
+    <div class="pro-trend-header">
+      <div>
+        <h3>Biểu đồ theo dõi Độc tính & Tuân thủ tại nhà</h3>
+        <p>Dữ liệu do người bệnh ghi nhận hằng ngày giữa 2 đợt tái khám · Nguồn: Patient-reported</p>
+      </div>
+      <div>
+        ${pill(`Ghi nhận: ${entries.length} ngày`, 'purple')}
+      </div>
+    </div>
+
+    <div class="pro-chart-container">
+      <div class="pro-chart-title"><b>Số lần tiêu chảy / ngày & Độ nặng Ban da:</b></div>
+      <div class="pro-bars">
+        ${entries.map(e => `
+          <div class="pro-bar-col">
+            <div class="pro-bar-value">${e.diarrheaCount} lần</div>
+            <div class="pro-bar-wrap">
+              <div class="pro-bar ${e.diarrheaCount >= 4 ? 'danger' : e.diarrheaCount >= 2 ? 'warning' : 'normal'}" style="height:${Math.min(100, e.diarrheaCount * 22)}px"></div>
+            </div>
+            <div class="pro-bar-date">${e.date}</div>
+            <div class="pro-bar-badge">${e.rashGrade > 0 ? `<span class="rash-tag ${e.rashGrade >= 2 ? 'danger' : 'warning'}">Ban G${e.rashGrade}</span>` : '<span class="rash-tag normal">Da êm</span>'}</div>
+            <div class="pro-bar-med">${e.medTaken ? '💊 80mg' : '❌ Quên'}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+
+    <div class="pro-trend-summary">
+      <div><b>Đánh giá xu hướng lâm sàng:</b> Tiêu chảy dao động 1–3 lần/ngày (Grade 1-2), có 1 đợt đỉnh 4 lần (ngày 29/08) đã kiểm soát bằng bù nước và Loperamide. Tuân thủ thuốc đạt ${entries.filter(e=>e.medTaken).length}/${entries.length} ngày (${Math.round(entries.filter(e=>e.medTaken).length/entries.length*100)}%).</div>
+    </div>
+  </section>`;
+}
+
+function doctor(){ return shell(`${patientSummary()}${medicationSafetyBrief()}${proTrendDashboard()}${recistAssessmentBrief()}${ctcaeToxicityGuide()}${mdtConsultationPanel()}${safetyQueue()}${doctorCareSnapshot()}${escalationReview()}${triageHandoff()}${doctorPatientVoice()}<div class="decision-layout"><section class="card"><small>DECISION BRIEF · TUẦN 6</small><h2>Tiếp tục điều trị hay cần đánh giá thêm?</h2><p class="lead">Bản tóm tắt cho một quyết định — không phải bệnh án. Mọi gợi ý cần bác sĩ xác nhận.</p>${patientVoice()}<div class="decision-lens"><small>DECISION LENS · FRAMING MÔ PHỎNG</small><h3>Câu hỏi lần khám</h3><b>Có thể tiếp tục liều hiện tại trong khi hoàn thiện dữ liệu an toàn và đáp ứng không?</b><div class="lens-grid"><div><small>Tín hiệu ủng hộ</small><p>Tuân thủ tốt · molecular phù hợp · độc tính demo G1–2</p></div><div><small>Next-best-information</small><p>CT tuần 8 · ECG/QTc · điện giải · xác minh toxicity trực tiếp</p></div></div><h3>Điểm bất định cần ghi nhận</h3>${uncertainties()}</div><div class="brief-columns"><div><h3>Dữ kiện mô phỏng</h3>${briefFacts(state.decisionBrief.facts,'fact')}</div><div><h3>Người bệnh báo cáo</h3>${briefFacts(state.decisionBrief.patientReported,'reported')}</div></div><h3>Evidence map · bấm từng mục để xác nhận đã review</h3>${evidenceMap()}${readinessPanel()}<h3>Safety gates</h3><div class="gates">${state.decisionBrief.safetyGates.map(g=>`<div class="gate ${g.status}"><span>${g.status==='ready'||g.status==='clear'?'✓':'!'}</span><div><b>${g.label}</b><small>${g.detail}</small></div></div>`).join('')}</div></section><section class="card"><small>CDS OPTIONS · KHÔNG PHẢI Y LỆNH</small><h2>Các hướng xử trí để bác sĩ cân nhắc</h2>${decisionOptions()}<label>Lý do quyết định / lý do từ chối gợi ý<textarea oninput="update(['doctor','decisionReason'],this.value)" placeholder="Bắt buộc ghi lý do trước khi xác nhận">${state.doctor.decisionReason}</textarea></label><div class="actions">${can('ready-for-doctor') ? button('Nhận ca','advance("doctor-examining","DOCTOR_ACCEPTED_CASE")','outline') : button('Chờ ĐD hoàn tất tiếp nhận','void(0)','disabled')}${hasUnresolvedRed() ? button('Đang có cảnh báo đỏ · phải xử trí trước','void(0)','disabled') : !decisionReady() ? button('Review evidence + xác nhận data gap trước','void(0)','disabled') : can('doctor-examining') && state.doctor.decisionReason.trim() ? button('Xác nhận quyết định · tạo handoff','confirmDecision()','primary') : button('Cần nhận ca + ghi lý do','void(0)','disabled')}</div></section><aside class="sticky"><section class="card evidence"><small>NGUỒN & PHIÊN BẢN</small><h3>${state.decisionBrief.evidence.title}</h3><p>${state.decisionBrief.evidence.version}</p><div class="warning">${state.decisionBrief.evidence.note}</div><hr><b>Dữ liệu còn thiếu</b><ul>${state.decisionBrief.safetyGates.filter(g=>g.status==='missing').map(g=>`<li>${g.label}</li>`).join('')}</ul></section></aside></div>${activityLog()}`); }
 function patientVoice(){ const p=state.previsit; const submitted=state.encounterState!=='previsit-draft'||p.submittedAt; return `<div class="patient-voice ${submitted?'submitted':''}"><div><small>PATIENT VOICE · NGUỒN NGƯỜI BỆNH TỰ BÁO CÁO</small><h3>${submitted?'Thông tin trước khám đã gửi':'Chưa có khai nhanh từ người bệnh'}</h3>${submitted?`<p><b>Mục tiêu:</b> ${p.goal||'Chưa nhập'}</p><p><b>Thay đổi:</b> ${p.changes||'Chưa nhập'}</p><small>Gửi lúc ${p.submittedAt||'không rõ'} · Không tự động xem là dữ kiện đã xác minh</small>`:'<p>Điều dưỡng/bác sĩ chưa nhận được patient voice. Đây là empty state, không phải lỗi hồ sơ.</p>'}</div><div>${submitted&&!p.doctorRead?button('Đánh dấu đã đọc','markPatientVoiceRead()','outline'):submitted?pill('BS đã đọc · patient-reported','green'):pill('Chờ người bệnh gửi')}</div></div>`; }
 function markPatientVoiceRead(){ state.previsit.doctorRead=true; event('PATIENT_VOICE_READ',{detail:'Bác sĩ đã đọc thông tin patient-reported trước khám'}); save(); render(); }
 function doctorPatientVoice(){ const v=state.patientVoice; if(v.status!=='submitted') return `<section class="card voice-empty"><small>PATIENT VOICE</small><b>Chưa có khai voice từ người bệnh</b><p>Đây là khoảng trống thông tin, không phải dữ liệu âm tính.</p></section>`; return `<section class="card patient-voice"><div><small>PATIENT VOICE · CHƯA XÁC MINH</small><h3>Người bệnh đã gửi bản nháp</h3><p>${v.transcript}</p><small>${v.capturedAt} · nguồn: người bệnh</small></div><button onclick="markVoiceRead()" class="${v.readByDoctor?'outline':'primary'}">${v.readByDoctor?'Đã đọc':'Đánh dấu đã đọc'}</button></section>`; }

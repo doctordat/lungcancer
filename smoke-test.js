@@ -118,8 +118,21 @@ const mdtPersisted = run("JSON.stringify({...state, careLoop:{...state.careLoop,
 run(`state = normalize(JSON.parse(${JSON.stringify(mdtPersisted)}))`);
 check(run("state.mdt.reviewed") === false && run("state.mdt.reviewMeta") === null, 'normalize invalidates old mdt review on plan revision bump');
 
+// Daily PRO Diary & Trend Chart assertions
+run("state = defaultState(); state.role='patient'");
+check(run("state.proDiary.entries.length") === 7, 'proDiary has 7 seed entries');
+check(run("state.proDiary.todayCheckin.medTaken") === true, 'default today checkin med is true');
+run("updateTodayCheckin('diarrheaCount', 4)");
+check(run("state.proDiary.todayCheckin.diarrheaCount") === 4, 'updated today checkin diarrhea to 4');
+run("submitProCheckin()");
+check(run("state.triage.status") === 'yellow', 'severe diarrhea auto-triggers yellow triage');
+
+run("updateTodayCheckin('dyspnea', true)");
+run("submitProCheckin()");
+check(run("hasUnresolvedRed()") === true, 'dyspnea auto-triggers red alert');
+
 console.log('LungCare smoke test: PASS');
-console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate, recist 1.1, ctcae v5.0, teach-back 10-point, mdt workflow');
+console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate, recist 1.1, ctcae v5.0, teach-back 10-point, mdt workflow, pro diary & trend');
 
 function stateValue(key) {
   return run(`Boolean(state.safetyRequests[0] && state.safetyRequests[0].${key})`);
