@@ -91,8 +91,20 @@ const ctcaePersisted = run("JSON.stringify({...state, careLoop:{...state.careLoo
 run(`state = normalize(JSON.parse(${JSON.stringify(ctcaePersisted)}))`);
 check(run("state.ctcae.reviewed") === false && run("state.ctcae.reviewMeta") === null, 'normalize invalidates old ctcae review on plan revision bump');
 
+// Nurse Teach-back & Discharge assertions
+run("state = defaultState(); state.role='nurse'; state.encounterState='doctor-plan-confirmed'");
+check(run("doneCount(state.education)") === 0, 'education checklist initially 0/10');
+run("completeTeachback()");
+check(run("state.encounterState") === 'doctor-plan-confirmed', 'cannot complete teachback when items < 10');
+run("['identity','emr','allergy','meds','missedDose','toxicity','redflags','teachback','followup','contact'].forEach(k => state.education[k] = true)");
+check(run("doneCount(state.education)") === 10, 'education checklist is now 10/10');
+run("completeTeachback()");
+check(run("state.encounterState") === 'home-care-active', 'encounter state advances to home-care-active');
+check(run("state.careLoop.plan.status") === 'active', 'care plan activated');
+check(run("state.education.completedBy") === 'ĐD. Thu Hà', 'education completedBy captured');
+
 console.log('LungCare smoke test: PASS');
-console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate, recist 1.1, ctcae v5.0');
+console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate, recist 1.1, ctcae v5.0, teach-back 10-point');
 
 function stateValue(key) {
   return run(`Boolean(state.safetyRequests[0] && state.safetyRequests[0].${key})`);

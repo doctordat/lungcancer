@@ -112,7 +112,7 @@ const defaultState = () => ({
       { id:'context', label:'Bối cảnh', value:'Tái khám ngoại trú · tuần 6', status:'ready', provenance:'Mô phỏng · encounter context', reviewed:false }
     ]
   },
-  education: { identity: false, emr: false, allergy: false, meds: false, missedDose: false, toxicity: false, redflags: false, teachback: false, followup: false, contact: false },
+  education: { identity: false, emr: false, allergy: false, meds: false, missedDose: false, toxicity: false, redflags: false, teachback: false, followup: false, contact: false, completedAt: null, completedBy: null, nurseNote: '' },
   home: { medicationTakenToday: false, missedToday: false },
   alerts: []
 });
@@ -206,7 +206,24 @@ function patient(){
     <section class="card"><small>KHAI NHANH TÁI KHÁM</small><label>Mục tiêu lần này<input value="${state.previsit.goal}" oninput="update(['previsit','goal'],this.value)" placeholder="Đánh giá đáp ứng, độc tính, cấp thuốc..." /></label><label>Thay đổi từ lần trước<textarea oninput="update(['previsit','changes'],this.value)" placeholder="VD: tiêu chảy 3-4 lần/ngày, ban da nhẹ...">${state.previsit.changes}</textarea></label>${button('Gửi thông tin cho khoa','advance("previsit-submitted","PREVISIT_SUBMITTED")','primary')}</section>
     <section class="card dangerZone"><small>BÁO TRIỆU CHỨNG</small><h3>Triage độc tính tại nhà</h3><p>Chọn nhanh triệu chứng. Nếu khó thở khi nghỉ/đau ngực/lơ mơ → popup đỏ gửi cả BS và ĐD.</p><div class="symptoms">${['Tiêu chảy','Ban da','Mệt','Sốt','Đau ngực','Khó thở khi nghỉ'].map(s=>button(s, s==='Khó thở khi nghỉ'?'redDyspnea()':'yellowSymptom("'+s+'")', s==='Khó thở khi nghỉ'?'danger':'outline')).join('')}</div></section>
   </div>
-  ${carePlanCard()}${safetyPatientReceipt()}${triagePanel()}${patientVoicePanel()}${decisionReceipt()}${active ? homePlan() : `<section class="empty card"><b>Chưa có kế hoạch tại nhà</b><p>Kế hoạch chỉ kích hoạt sau khi bác sĩ xác nhận và điều dưỡng hoàn tất teach-back.</p></section>`}`);
+  ${carePlanCard()}${teachbackPatientReceipt()}${safetyPatientReceipt()}${triagePanel()}${patientVoicePanel()}${decisionReceipt()}${active ? homePlan() : `<section class="empty card"><b>Chưa có kế hoạch tại nhà</b><p>Kế hoạch chỉ kích hoạt sau khi bác sĩ xác nhận và điều dưỡng hoàn tất teach-back.</p></section>`}`);
+}
+
+function teachbackPatientReceipt(){
+  const ed = state.education;
+  if(state.encounterState !== 'home-care-active' || !ed.completedAt) return '';
+  return `<section class="card patient-feedback teachback-receipt">
+    <small>BẢN HƯỚNG DẪN XUẤT VIỆN & DÙNG THUỐC TẠI NHÀ</small>
+    <h3>Điều dưỡng đã bàn giao lúc ${ed.completedAt} (${ed.completedBy || 'ĐD. Thu Hà'})</h3>
+    <div class="receipt-instructions">
+      <div><b>1. Uống thuốc:</b> Osimertinib 80mg uống nguyên viên, 1 lần/ngày vào cùng một khung giờ.</div>
+      <div><b>2. Xử trí quên liều:</b> Uống ngay nếu còn >12h tới liều tiếp theo. Không uống gấp đôi.</div>
+      <div><b>3. Độc tính tiêu chảy:</b> Uống Oresol bù nước + Loperamide 2mg sau mỗi lần tiêu chảy lỏng.</div>
+      <div><b>4. Độc tính ban da:</b> Dưỡng ẩm nhẹ nhàng không cồn, tránh nắng.</div>
+      <div><b>5. Báo động khẩn cấp:</b> Khó thở khi nghỉ, đau ngực dữ dội, sốt >38.5°C -> Bấm Triage đỏ hoặc gọi Hotline cấp cứu.</div>
+      ${ed.nurseNote ? `<div><b>Ghi chú điều dưỡng:</b> ${ed.nurseNote}</div>` : ''}
+    </div>
+  </section>`;
 }
 
 function safetyPatientReceipt(){ const rs=state.safetyRequests; if(!rs.length)return ''; return `<section class=\"card patient-feedback\"><b>Việc đội điều trị đang phối hợp</b><p>${rs.map(r=>`${r.label}: ${r.status==='reviewed'?'đã được đội điều trị xem':'đang chờ/được điều phối'}`).join(' · ')}</p></section>`; }
@@ -253,7 +270,46 @@ function handoffCards(audience){
 }
 
 function nurse(){ return shell(`${patientSummary()}${safetyQueue()}${careTaskQueue()}${triageInbox()}${triageHandoff()}${decisionReceipt()}<div class="grid two"><section class="card"><small>TIẾP NHẬN ĐIỀU DƯỠNG</small><h2>${can('previsit-submitted')?'Có bệnh nhân đã gửi khai nhanh':'Chờ bệnh nhân gửi khai nhanh'}</h2><p>Định danh, sinh hiệu, dị ứng, thuốc đang dùng và dấu hiệu báo động.</p>${checklist('intake', ['idChecked|Đối chiếu họ tên · ngày sinh · mã BN','vitals|Nhập sinh hiệu · SpO₂ · đau · cân nặng','allergy|Xác minh dị ứng','medrec|Medication reconciliation','redflags|Xác minh dấu hiệu báo động'])}<label>Ghi chú voice/nhập tay<textarea oninput="update(['intake','note'],this.value)">${state.intake.note}</textarea></label>${doneCount(state.intake)>=5 ? button('Hoàn tất tiếp nhận → gửi bác sĩ','advance("ready-for-doctor","NURSE_INTAKE_COMPLETED")','primary') : button('Cần đủ checklist để hoàn tất','void(0)','disabled')}</section><section class="card"><small>SAU KHI BÁC SĨ CHỐT KẾ HOẠCH</small><h2>${can('doctor-plan-confirmed')?'Kế hoạch đã chuyển từ bác sĩ':'Chưa có kế hoạch điều trị'}</h2><p>Điều dưỡng chỉ nhận các việc cần phối hợp từ quyết định đã xác nhận — không nhận toàn bộ bệnh án và không tự sinh y lệnh.</p>${can('doctor-plan-confirmed') ? handoffCards('nurse') + teachback() : '<div class="empty">Handoff cards sẽ xuất hiện sau khi BS xác nhận quyết định.</div>'}</section></div>${activityLog()}`); }
-function teachback(){ return `${checklist('education', ['identity|Đúng người bệnh','emr|Đối chiếu kế hoạch với HIS/EMR','allergy|Kiểm tra dị ứng','meds|Hướng dẫn từng thuốc','missedDose|Xử trí quên liều','toxicity|Độc tính thường gặp','redflags|Dấu hiệu phải báo ngay','teachback|Người bệnh nhắc lại đúng','followup|Lịch xét nghiệm/tái khám','contact|Số liên hệ khoa'])}${doneCount(state.education)>=10 ? button('Hoàn tất teach-back · kích hoạt My Care','advance("home-care-active","NURSE_EDUCATION_COMPLETED")','primary') : button('Hoàn tất sau khi đủ teach-back','void(0)','disabled')}`; }
+function completeTeachback(){
+  if(doneCount(state.education) < 10) return;
+  state.education.completedAt = new Date().toLocaleString('vi-VN');
+  state.education.completedBy = 'ĐD. Thu Hà';
+  advance('home-care-active', 'NURSE_EDUCATION_COMPLETED');
+}
+
+function teachback(){
+  const items = [
+    'identity|1. Đối chiếu định danh đúng người bệnh (họ tên, ngày sinh, mã BN LC-871748)',
+    'emr|2. Đối chiếu kế hoạch điều trị của BS với HIS/EMR',
+    'allergy|3. Kiểm tra tiền sử dị ứng thuốc và thực phẩm',
+    'meds|4. Hướng dẫn dùng Osimertinib 80mg/ngày (uống nguyên viên cùng giờ, không nghiền)',
+    'missedDose|5. Xử trí quên liều (uống bù nếu còn >12h tới liều kế tiếp; không uống gấp đôi)',
+    'toxicity|6. Hướng dẫn chăm sóc độc tính tại nhà (bù nước/Loperamide cho tiêu chảy G2, dưỡng ẩm da)',
+    'redflags|7. Nhận biết dấu hiệu báo động (khó thở khi nghỉ, đau ngực, sốt cao >38.5°C)',
+    'teachback|8. Người bệnh nhắc lại đúng liều lượng, giờ uống và cách báo động (Teach-back OK)',
+    'followup|9. Hẹn lịch xét nghiệm an toàn (ECG/điện giải) và CT đánh giá tuần 8',
+    'contact|10. Cung cấp số điện thoại hotline Khoa Ung bướu để hỗ trợ 24/7'
+  ];
+  const count = doneCount(state.education);
+  return `<div class="teachback-section">
+    <div class="teachback-header">
+      <div>
+        <h4>Bảng kiểm bàn giao & Giáo dục sức khỏe (Teach-back 10 điểm)</h4>
+        <p>Điều dưỡng thực hiện trước khi người bệnh xuất viện · Hoàn thành: ${count}/10</p>
+      </div>
+      <div>
+        ${count >= 10 ? pill('Đã hoàn thành 10/10 mục', 'green') : pill(`Còn ${10 - count} mục`, 'yellow')}
+      </div>
+    </div>
+    ${checklist('education', items)}
+    <label>Ghi chú phản hồi của người bệnh khi bàn giao:
+      <textarea oninput="update(['education','nurseNote'],this.value)" placeholder="Người bệnh hiểu rõ cách uống thuốc và cách theo dõi tiêu chảy...">${state.education.nurseNote || ''}</textarea>
+    </label>
+    <div class="actions">
+      ${count >= 10 ? button('Hoàn tất teach-back · Kích hoạt My Care tại nhà', 'completeTeachback()', 'primary') : button('Cần đánh dấu đủ 10 mục để kích hoạt', 'void(0)', 'disabled')}
+    </div>
+  </div>`;
+}
 
 function recistAssessmentBrief(){
   const r = state.recist;
