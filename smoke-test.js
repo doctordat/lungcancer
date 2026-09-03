@@ -78,8 +78,21 @@ const recistPersisted = run("JSON.stringify({...state, careLoop:{...state.careLo
 run(`state = normalize(JSON.parse(${JSON.stringify(recistPersisted)}))`);
 check(run("state.recist.reviewed") === false && run("state.recist.reviewMeta") === null, 'normalize invalidates old recist review on plan revision bump');
 
+// CTCAE v5.0 Toxicity Management Guide assertions
+run("state = defaultState(); state.role='doctor'; state.encounterState='doctor-examining'");
+check(run("state.ctcae.items.length") === 2, 'ctcae has 2 toxicity items (diarrhea, rash)');
+check(run("state.ctcae.reviewed") === false, 'ctcae initially unreviewed');
+run("reviewCtcae()");
+check(run("state.ctcae.reviewed") === true, 'ctcae marked as reviewed');
+check(run("state.medicationSafety.reviewed['toxicity']") === true, 'medication toxicity review synced');
+check(run("state.decisionBrief.evidenceMap.find(x=>x.id==='toxicity').reviewed") === true, 'evidence map toxicity synced');
+
+const ctcaePersisted = run("JSON.stringify({...state, careLoop:{...state.careLoop, plan:{...state.careLoop.plan, revision:3}}, ctcae:{...state.ctcae, reviewed:true, reviewMeta:{planId:state.careLoop.plan.planId, revision:2, reviewedBy:'BS. Mỹ Linh'}}})");
+run(`state = normalize(JSON.parse(${JSON.stringify(ctcaePersisted)}))`);
+check(run("state.ctcae.reviewed") === false && run("state.ctcae.reviewMeta") === null, 'normalize invalidates old ctcae review on plan revision bump');
+
 console.log('LungCare smoke test: PASS');
-console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate, recist 1.1 brief');
+console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate, recist 1.1, ctcae v5.0');
 
 function stateValue(key) {
   return run(`Boolean(state.safetyRequests[0] && state.safetyRequests[0].${key})`);

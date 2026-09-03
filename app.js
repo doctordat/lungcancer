@@ -49,6 +49,32 @@ const defaultState = () => ({
     reviewed: false,
     reviewMeta: null
   },
+  ctcae: {
+    items: [
+      {
+        id: 'diarrhea',
+        name: 'Tiêu chảy (Diarrhea)',
+        grade: 2,
+        patientReported: '3–4 lần/ngày, phân lỏng, không đau quặn nhiều',
+        definition: 'Grade 2: Tăng 4–6 lần đi tiêu/ngày so với mức nền; ảnh hưởng sinh hoạt thường ngày mức độ vừa.',
+        managementDemo: 'Bù nước điện giải Oresol + Loperamide 2mg sau mỗi lần đi tiêu lỏng (tối đa 16mg/ngày). Theo dõi sát nếu sốt hoặc kéo dài >48h.',
+        dosingRecommendation: 'Tiếp tục Osimertinib 80mg + điều trị hỗ trợ. Nếu tăng lên Grade ≥ 3: tạm dừng thuốc cho đến khi về Grade ≤ 1.',
+        reviewed: false
+      },
+      {
+        id: 'rash',
+        name: 'Ban da dạng trứng cá (Rash maculo-papular)',
+        grade: 1,
+        patientReported: 'Ban đỏ nhẹ vùng mặt và lưng, ngứa nhẹ',
+        definition: 'Grade 1: Tổn thương dát sẩn diện tích < 10% BSA, có hoặc không ngứa/rát.',
+        managementDemo: 'Dưỡng ẩm da không cồn + Kem bôi Hydrocortisone 1% hoặc Clindamycin 1% tại chỗ. Tránh ánh nắng trực tiếp.',
+        dosingRecommendation: 'Tiếp tục Osimertinib 80mg, không cần chỉnh liều.',
+        reviewed: false
+      }
+    ],
+    reviewed: false,
+    reviewMeta: null
+  },
   medicationSafety: { reviewed:{dose:false,adherence:false,toxicity:false,labs:false,interactions:false}, reviewMeta:{}, checks:[{id:'dose',label:'Liều hiện tại',value:'Osimertinib 80 mg/ngày · tuần 6',source:'Treatment plan demo'},{id:'adherence',label:'Tuân thủ',value:'41/42 liều · 98%',source:'Patient medication log demo'},{id:'toxicity',label:'Độc tính',value:'Tiêu chảy G2 · ban da G1',source:'Patient-reported demo'},{id:'labs',label:'Safety labs',value:'QTc/điện giải chưa có',source:'Data gap demo'},{id:'interactions',label:'Tương tác cần kiểm tra',value:'Chưa kết nối drug database',source:'Chưa triển khai'}] },
   careLoop: { plan:{planId:'PLAN-LC-871748-001',revision:1,status:'draft',createdBy:'BS. Mỹ Linh',confirmedAt:null,activatedAt:null,provenance:'Draft demo · chưa clinician confirm'}, tasks:[{id:'med',label:'Uống thuốc hôm nay',status:'pending',planId:'PLAN-LC-871748-001',revision:1},{id:'symptom',label:'Kiểm tra triệu chứng',status:'pending',planId:'PLAN-LC-871748-001',revision:1},{id:'labs',label:'Nhắc xét nghiệm an toàn',status:'pending',planId:'PLAN-LC-871748-001',revision:1},{id:'followup',label:'Chuẩn bị tái khám',status:'pending',planId:'PLAN-LC-871748-001',revision:1}], symptomCheck:{completed:false,at:null,summary:''} },
   intake: { idChecked: false, vitals: false, allergy: false, medrec: false, redflags: false, note: '' },
@@ -104,6 +130,7 @@ function normalize(raw) {
     scenario: raw.scenario || d.scenario,
     safetyRequests: Array.isArray(raw.safetyRequests) ? raw.safetyRequests.filter(r=>r && r.planId===careLoop.plan.planId && r.revision===careLoop.plan.revision) : d.safetyRequests,
     recist: { ...d.recist, ...(raw.recist || {}), targetLesions: Array.isArray(raw.recist?.targetLesions) ? raw.recist.targetLesions : d.recist.targetLesions, reviewMeta: (raw.recist?.reviewMeta && raw.recist.reviewMeta.planId===careLoop.plan.planId && raw.recist.reviewMeta.revision===careLoop.plan.revision) ? raw.recist.reviewMeta : null, reviewed: Boolean(raw.recist?.reviewed && raw.recist?.reviewMeta?.planId===careLoop.plan.planId && raw.recist?.reviewMeta?.revision===careLoop.plan.revision) },
+    ctcae: { ...d.ctcae, ...(raw.ctcae || {}), items: Array.isArray(raw.ctcae?.items) ? raw.ctcae.items : d.ctcae.items, reviewMeta: (raw.ctcae?.reviewMeta && raw.ctcae.reviewMeta.planId===careLoop.plan.planId && raw.ctcae.reviewMeta.revision===careLoop.plan.revision) ? raw.ctcae.reviewMeta : null, reviewed: Boolean(raw.ctcae?.reviewed && raw.ctcae?.reviewMeta?.planId===careLoop.plan.planId && raw.ctcae?.reviewMeta?.revision===careLoop.plan.revision) },
     medicationSafety: { ...d.medicationSafety, ...(raw.medicationSafety || {}), reviewed:{...d.medicationSafety.reviewed,...(raw.medicationSafety?.reviewed||{})}, reviewMeta:{...d.medicationSafety.reviewMeta,...(raw.medicationSafety?.reviewMeta||{})}, checks:Array.isArray(raw.medicationSafety?.checks)?raw.medicationSafety.checks:d.medicationSafety.checks },
     careLoop,
     intake: { ...d.intake, ...(raw.intake || {}) },
@@ -296,7 +323,63 @@ function reviewRecist(){
   render();
 }
 
-function doctor(){ return shell(`${patientSummary()}${medicationSafetyBrief()}${recistAssessmentBrief()}${safetyQueue()}${doctorCareSnapshot()}${escalationReview()}${triageHandoff()}${doctorPatientVoice()}<div class="decision-layout"><section class="card"><small>DECISION BRIEF · TUẦN 6</small><h2>Tiếp tục điều trị hay cần đánh giá thêm?</h2><p class="lead">Bản tóm tắt cho một quyết định — không phải bệnh án. Mọi gợi ý cần bác sĩ xác nhận.</p>${patientVoice()}<div class="decision-lens"><small>DECISION LENS · FRAMING MÔ PHỎNG</small><h3>Câu hỏi lần khám</h3><b>Có thể tiếp tục liều hiện tại trong khi hoàn thiện dữ liệu an toàn và đáp ứng không?</b><div class="lens-grid"><div><small>Tín hiệu ủng hộ</small><p>Tuân thủ tốt · molecular phù hợp · độc tính demo G1–2</p></div><div><small>Next-best-information</small><p>CT tuần 8 · ECG/QTc · điện giải · xác minh toxicity trực tiếp</p></div></div><h3>Điểm bất định cần ghi nhận</h3>${uncertainties()}</div><div class="brief-columns"><div><h3>Dữ kiện mô phỏng</h3>${briefFacts(state.decisionBrief.facts,'fact')}</div><div><h3>Người bệnh báo cáo</h3>${briefFacts(state.decisionBrief.patientReported,'reported')}</div></div><h3>Evidence map · bấm từng mục để xác nhận đã review</h3>${evidenceMap()}${readinessPanel()}<h3>Safety gates</h3><div class="gates">${state.decisionBrief.safetyGates.map(g=>`<div class="gate ${g.status}"><span>${g.status==='ready'||g.status==='clear'?'✓':'!'}</span><div><b>${g.label}</b><small>${g.detail}</small></div></div>`).join('')}</div></section><section class="card"><small>CDS OPTIONS · KHÔNG PHẢI Y LỆNH</small><h2>Các hướng xử trí để bác sĩ cân nhắc</h2>${decisionOptions()}<label>Lý do quyết định / lý do từ chối gợi ý<textarea oninput="update(['doctor','decisionReason'],this.value)" placeholder="Bắt buộc ghi lý do trước khi xác nhận">${state.doctor.decisionReason}</textarea></label><div class="actions">${can('ready-for-doctor') ? button('Nhận ca','advance("doctor-examining","DOCTOR_ACCEPTED_CASE")','outline') : button('Chờ ĐD hoàn tất tiếp nhận','void(0)','disabled')}${hasUnresolvedRed() ? button('Đang có cảnh báo đỏ · phải xử trí trước','void(0)','disabled') : !decisionReady() ? button('Review evidence + xác nhận data gap trước','void(0)','disabled') : can('doctor-examining') && state.doctor.decisionReason.trim() ? button('Xác nhận quyết định · tạo handoff','confirmDecision()','primary') : button('Cần nhận ca + ghi lý do','void(0)','disabled')}</div></section><aside class="sticky"><section class="card evidence"><small>NGUỒN & PHIÊN BẢN</small><h3>${state.decisionBrief.evidence.title}</h3><p>${state.decisionBrief.evidence.version}</p><div class="warning">${state.decisionBrief.evidence.note}</div><hr><b>Dữ liệu còn thiếu</b><ul>${state.decisionBrief.safetyGates.filter(g=>g.status==='missing').map(g=>`<li>${g.label}</li>`).join('')}</ul></section></aside></div>${activityLog()}`); }
+function ctcaeToxicityGuide(){
+  const c = state.ctcae;
+  return `<section class="card ctcae-guide"><small>CTCAE v5.0 TOXICITY MANAGEMENT GUIDE · XỬ TRÍ ĐỘC TÍNH MÔ PHỎNG</small>
+    <div class="ctcae-header">
+      <div>
+        <h3>Đánh giá độc tính: Tiêu chảy G2 · Ban da G1</h3>
+        <p>Phân độ theo CTCAE v5.0 · Hướng dẫn xử trí nâng đỡ theo khuyến cáo lâm sàng osimertinib</p>
+        <small>CDS demo · Không tự động thay đổi liều hoặc phát sinh y lệnh</small>
+      </div>
+      <div>
+        ${c.reviewed ? pill(`BS đã review độc tính · ${c.reviewMeta?.reviewedAt || ''}`, 'green') : button('Xác nhận đã review CTCAE', 'reviewCtcae()', 'primary')}
+      </div>
+    </div>
+    <div class="ctcae-cards">
+      ${c.items.map((item, idx) => `
+        <div class="ctcae-card ${item.grade >= 2 ? 'warning-card' : ''}">
+          <div class="ctcae-card-top">
+            <b>${item.name}</b>
+            ${pill(`Grade ${item.grade}`, item.grade >= 3 ? 'red' : item.grade === 2 ? 'yellow' : 'green')}
+          </div>
+          <div class="ctcae-field"><small>Người bệnh báo cáo:</small><p>${item.patientReported}</p></div>
+          <div class="ctcae-field"><small>Tiêu chuẩn CTCAE v5.0:</small><p>${item.definition}</p></div>
+          <div class="ctcae-field"><small>Khuyến cáo chăm sóc hỗ trợ (Supportive Care):</small><p><strong>${item.managementDemo}</strong></p></div>
+          <div class="ctcae-field"><small>Khuyến cáo điều chỉnh liều osimertinib:</small><p><em>${item.dosingRecommendation}</em></p></div>
+        </div>
+      `).join('')}
+    </div>
+  </section>`;
+}
+
+function reviewCtcae(){
+  if(state.role !== 'doctor') return;
+  state.ctcae.reviewed = true;
+  state.ctcae.items.forEach(it => it.reviewed = true);
+  state.ctcae.reviewMeta = {
+    planId: state.careLoop.plan.planId,
+    revision: state.careLoop.plan.revision,
+    reviewedAt: new Date().toLocaleString('vi-VN'),
+    reviewedBy: 'BS. Mỹ Linh'
+  };
+  state.medicationSafety.reviewed['toxicity'] = true;
+  state.medicationSafety.reviewMeta['toxicity'] = {
+    planId: state.careLoop.plan.planId,
+    revision: state.careLoop.plan.revision,
+    reviewedAt: state.ctcae.reviewMeta.reviewedAt
+  };
+  const toxItem = state.decisionBrief.evidenceMap.find(x => x.id === 'toxicity');
+  if(toxItem){
+    toxItem.reviewed = true;
+    toxItem.provenance = 'CTCAE v5.0 mô phỏng · BS đã review';
+  }
+  event('CTCAE_TOXICITY_REVIEWED', { detail: 'Đã review phân độ và hướng xử trí độc tính CTCAE v5.0' });
+  save();
+  render();
+}
+
+function doctor(){ return shell(`${patientSummary()}${medicationSafetyBrief()}${recistAssessmentBrief()}${ctcaeToxicityGuide()}${safetyQueue()}${doctorCareSnapshot()}${escalationReview()}${triageHandoff()}${doctorPatientVoice()}<div class="decision-layout"><section class="card"><small>DECISION BRIEF · TUẦN 6</small><h2>Tiếp tục điều trị hay cần đánh giá thêm?</h2><p class="lead">Bản tóm tắt cho một quyết định — không phải bệnh án. Mọi gợi ý cần bác sĩ xác nhận.</p>${patientVoice()}<div class="decision-lens"><small>DECISION LENS · FRAMING MÔ PHỎNG</small><h3>Câu hỏi lần khám</h3><b>Có thể tiếp tục liều hiện tại trong khi hoàn thiện dữ liệu an toàn và đáp ứng không?</b><div class="lens-grid"><div><small>Tín hiệu ủng hộ</small><p>Tuân thủ tốt · molecular phù hợp · độc tính demo G1–2</p></div><div><small>Next-best-information</small><p>CT tuần 8 · ECG/QTc · điện giải · xác minh toxicity trực tiếp</p></div></div><h3>Điểm bất định cần ghi nhận</h3>${uncertainties()}</div><div class="brief-columns"><div><h3>Dữ kiện mô phỏng</h3>${briefFacts(state.decisionBrief.facts,'fact')}</div><div><h3>Người bệnh báo cáo</h3>${briefFacts(state.decisionBrief.patientReported,'reported')}</div></div><h3>Evidence map · bấm từng mục để xác nhận đã review</h3>${evidenceMap()}${readinessPanel()}<h3>Safety gates</h3><div class="gates">${state.decisionBrief.safetyGates.map(g=>`<div class="gate ${g.status}"><span>${g.status==='ready'||g.status==='clear'?'✓':'!'}</span><div><b>${g.label}</b><small>${g.detail}</small></div></div>`).join('')}</div></section><section class="card"><small>CDS OPTIONS · KHÔNG PHẢI Y LỆNH</small><h2>Các hướng xử trí để bác sĩ cân nhắc</h2>${decisionOptions()}<label>Lý do quyết định / lý do từ chối gợi ý<textarea oninput="update(['doctor','decisionReason'],this.value)" placeholder="Bắt buộc ghi lý do trước khi xác nhận">${state.doctor.decisionReason}</textarea></label><div class="actions">${can('ready-for-doctor') ? button('Nhận ca','advance("doctor-examining","DOCTOR_ACCEPTED_CASE")','outline') : button('Chờ ĐD hoàn tất tiếp nhận','void(0)','disabled')}${hasUnresolvedRed() ? button('Đang có cảnh báo đỏ · phải xử trí trước','void(0)','disabled') : !decisionReady() ? button('Review evidence + xác nhận data gap trước','void(0)','disabled') : can('doctor-examining') && state.doctor.decisionReason.trim() ? button('Xác nhận quyết định · tạo handoff','confirmDecision()','primary') : button('Cần nhận ca + ghi lý do','void(0)','disabled')}</div></section><aside class="sticky"><section class="card evidence"><small>NGUỒN & PHIÊN BẢN</small><h3>${state.decisionBrief.evidence.title}</h3><p>${state.decisionBrief.evidence.version}</p><div class="warning">${state.decisionBrief.evidence.note}</div><hr><b>Dữ liệu còn thiếu</b><ul>${state.decisionBrief.safetyGates.filter(g=>g.status==='missing').map(g=>`<li>${g.label}</li>`).join('')}</ul></section></aside></div>${activityLog()}`); }
 function patientVoice(){ const p=state.previsit; const submitted=state.encounterState!=='previsit-draft'||p.submittedAt; return `<div class="patient-voice ${submitted?'submitted':''}"><div><small>PATIENT VOICE · NGUỒN NGƯỜI BỆNH TỰ BÁO CÁO</small><h3>${submitted?'Thông tin trước khám đã gửi':'Chưa có khai nhanh từ người bệnh'}</h3>${submitted?`<p><b>Mục tiêu:</b> ${p.goal||'Chưa nhập'}</p><p><b>Thay đổi:</b> ${p.changes||'Chưa nhập'}</p><small>Gửi lúc ${p.submittedAt||'không rõ'} · Không tự động xem là dữ kiện đã xác minh</small>`:'<p>Điều dưỡng/bác sĩ chưa nhận được patient voice. Đây là empty state, không phải lỗi hồ sơ.</p>'}</div><div>${submitted&&!p.doctorRead?button('Đánh dấu đã đọc','markPatientVoiceRead()','outline'):submitted?pill('BS đã đọc · patient-reported','green'):pill('Chờ người bệnh gửi')}</div></div>`; }
 function markPatientVoiceRead(){ state.previsit.doctorRead=true; event('PATIENT_VOICE_READ',{detail:'Bác sĩ đã đọc thông tin patient-reported trước khám'}); save(); render(); }
 function doctorPatientVoice(){ const v=state.patientVoice; if(v.status!=='submitted') return `<section class="card voice-empty"><small>PATIENT VOICE</small><b>Chưa có khai voice từ người bệnh</b><p>Đây là khoảng trống thông tin, không phải dữ liệu âm tính.</p></section>`; return `<section class="card patient-voice"><div><small>PATIENT VOICE · CHƯA XÁC MINH</small><h3>Người bệnh đã gửi bản nháp</h3><p>${v.transcript}</p><small>${v.capturedAt} · nguồn: người bệnh</small></div><button onclick="markVoiceRead()" class="${v.readByDoctor?'outline':'primary'}">${v.readByDoctor?'Đã đọc':'Đánh dấu đã đọc'}</button></section>`; }
