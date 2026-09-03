@@ -167,8 +167,17 @@ check(run("state.rehabNutrition.exercises[0].completed") === true, 'first exerci
 run("reviewRehabNutrition()");
 check(run("state.rehabNutrition.reviewed") === true, 'rehabNutrition marked as reviewed');
 
+// Caregiver Sync & SMS assertions
+check(run("state.caregiverSync.primaryCaregiver.phone") === '0918 234 567', 'caregiver phone registered');
+const initialSmsLen = run("state.caregiverSync.smsHistory.length");
+run("missDose()");
+check(run("state.caregiverSync.smsHistory.length") === initialSmsLen + 1, 'missDose auto-dispatches caregiver SMS');
+check(run("state.caregiverSync.smsHistory[0].message").includes('quên liều'), 'dispatched SMS contains missed dose notice');
+run("testCaregiverAlert()");
+check(run("state.caregiverSync.smsHistory.length") === initialSmsLen + 2, 'test alert dispatches caregiver SMS');
+
 console.log('LungCare smoke test: PASS');
-console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate, recist 1.1, ctcae v5.0, teach-back 10-point, mdt workflow, pro diary, soap summary, safety labs, biomarkers, ddi checker, rehab nutrition');
+console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate, recist 1.1, ctcae v5.0, teach-back 10-point, mdt workflow, pro diary, soap summary, safety labs, biomarkers, ddi checker, rehab nutrition, caregiver sync');
 
 function stateValue(key) {
   return run(`Boolean(state.safetyRequests[0] && state.safetyRequests[0].${key})`);
