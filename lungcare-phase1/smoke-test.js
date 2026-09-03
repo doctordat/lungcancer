@@ -158,8 +158,17 @@ check(run("state.ddiChecker.reviewed") === true, 'ddiChecker marked as reviewed'
 check(run("state.medicationSafety.reviewed['interactions']") === true, 'medication interactions review synced');
 check(run("state.medicationSafety.checks.find(x=>x.id==='interactions').value").includes('Ngưng Omeprazole'), 'medication check value updated after DDI review');
 
+// Nutrition & Pulmonary Rehab assertions
+check(run("state.rehabNutrition.exercises.length") === 3, 'rehabNutrition has 3 exercises');
+check(run("state.rehabNutrition.bmi") === 21.3, 'rehabNutrition bmi is 21.3');
+check(run("state.rehabNutrition.exercises[0].completed") === false, 'first exercise initially uncompleted');
+run("toggleRehabExercise(0)");
+check(run("state.rehabNutrition.exercises[0].completed") === true, 'first exercise marked completed');
+run("reviewRehabNutrition()");
+check(run("state.rehabNutrition.reviewed") === true, 'rehabNutrition marked as reviewed');
+
 console.log('LungCare smoke test: PASS');
-console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate, recist 1.1, ctcae v5.0, teach-back 10-point, mdt workflow, pro diary, soap summary, safety labs, biomarkers, ddi checker');
+console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate, recist 1.1, ctcae v5.0, teach-back 10-point, mdt workflow, pro diary, soap summary, safety labs, biomarkers, ddi checker, rehab nutrition');
 
 function stateValue(key) {
   return run(`Boolean(state.safetyRequests[0] && state.safetyRequests[0].${key})`);

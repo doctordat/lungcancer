@@ -210,6 +210,21 @@ const defaultState = () => ({
     reviewed: false,
     reviewMeta: null
   },
+  rehabNutrition: {
+    weightKg: 58.0,
+    heightCm: 165,
+    bmi: 21.3,
+    weightChange6MoPct: -1.5,
+    cachexiaRisk: 'Thấp (Ổn định thể trạng)',
+    dietPlan: 'Chế độ ăn giàu đạm (thịt nạc, cá, trứng), chia 5-6 bữa nhỏ/ngày, uống đủ 2 lít nước ấm, hạn chế đồ dầu mỡ chua cay để giảm kích ứng tiêu hóa.',
+    exercises: [
+      { id: 'pursed_lip', name: '1. Thở chúm môi (Pursed-lip Breathing)', duration: '10 phút (Sáng / Chiều)', instruction: 'Hít sâu bằng mũi 2 giây -> Chúm môi thở ra từ từ 4 giây. Giúp xả khí cặn trong phổi, tăng oxy máu.', completed: false },
+      { id: 'diaphragm', name: '2. Thở cơ hoành bụng (Diaphragmatic Breathing)', duration: '5 phút trước khi ngủ', instruction: 'Đặt 1 tay lên ngực, 1 tay lên bụng. Hít vào bụng phình lên, thở ra bụng xẹp xuống. Giúp giảm căng thẳng và giảm khó thở.', completed: false },
+      { id: 'walking', name: '3. Đi bộ nhẹ nhàng bằng phẳng', duration: '15 phút/ngày', instruction: 'Đi bộ tốc độ vừa phải, ngưng nghỉ nếu thấy mệt hoặc hụt hơi. Duy trì thể lực ECOG 0-1.', completed: false }
+    ],
+    reviewed: false,
+    reviewMeta: null
+  },
   alerts: []
 });
 
@@ -231,6 +246,7 @@ function normalize(raw) {
     safetyLabs: { ...d.safetyLabs, ...(raw.safetyLabs || {}), reviewMeta: (raw.safetyLabs?.reviewMeta && raw.safetyLabs.reviewMeta.planId===careLoop.plan.planId && raw.safetyLabs.reviewMeta.revision===careLoop.plan.revision) ? raw.safetyLabs.reviewMeta : null, reviewed: Boolean(raw.safetyLabs?.reviewed && raw.safetyLabs?.reviewMeta?.planId===careLoop.plan.planId && raw.safetyLabs?.reviewMeta?.revision===careLoop.plan.revision) },
     biomarkers: { ...d.biomarkers, ...(raw.biomarkers || {}), resistanceMarkers: Array.isArray(raw.biomarkers?.resistanceMarkers) ? raw.biomarkers.resistanceMarkers : d.biomarkers.resistanceMarkers, ctDnaTrend: Array.isArray(raw.biomarkers?.ctDnaTrend) ? raw.biomarkers.ctDnaTrend : d.biomarkers.ctDnaTrend, reviewMeta: (raw.biomarkers?.reviewMeta && raw.biomarkers.reviewMeta.planId===careLoop.plan.planId && raw.biomarkers.reviewMeta.revision===careLoop.plan.revision) ? raw.biomarkers.reviewMeta : null, reviewed: Boolean(raw.biomarkers?.reviewed && raw.biomarkers?.reviewMeta?.planId===careLoop.plan.planId && raw.biomarkers?.reviewMeta?.revision===careLoop.plan.revision) },
     ddiChecker: { ...d.ddiChecker, ...(raw.ddiChecker || {}), concomitantMeds: Array.isArray(raw.ddiChecker?.concomitantMeds) ? raw.ddiChecker.concomitantMeds : d.ddiChecker.concomitantMeds, interactions: Array.isArray(raw.ddiChecker?.interactions) ? raw.ddiChecker.interactions : d.ddiChecker.interactions, reviewMeta: (raw.ddiChecker?.reviewMeta && raw.ddiChecker.reviewMeta.planId===careLoop.plan.planId && raw.ddiChecker.reviewMeta.revision===careLoop.plan.revision) ? raw.ddiChecker.reviewMeta : null, reviewed: Boolean(raw.ddiChecker?.reviewed && raw.ddiChecker?.reviewMeta?.planId===careLoop.plan.planId && raw.ddiChecker?.reviewMeta?.revision===careLoop.plan.revision) },
+    rehabNutrition: { ...d.rehabNutrition, ...(raw.rehabNutrition || {}), exercises: Array.isArray(raw.rehabNutrition?.exercises) ? raw.rehabNutrition.exercises : d.rehabNutrition.exercises, reviewMeta: (raw.rehabNutrition?.reviewMeta && raw.rehabNutrition.reviewMeta.planId===careLoop.plan.planId && raw.rehabNutrition.reviewMeta.revision===careLoop.plan.revision) ? raw.rehabNutrition.reviewMeta : null, reviewed: Boolean(raw.rehabNutrition?.reviewed && raw.rehabNutrition?.reviewMeta?.planId===careLoop.plan.planId && raw.rehabNutrition?.reviewMeta?.revision===careLoop.plan.revision) },
     medicationSafety: { ...d.medicationSafety, ...(raw.medicationSafety || {}), reviewed:{...d.medicationSafety.reviewed,...(raw.medicationSafety?.reviewed||{})}, reviewMeta:{...d.medicationSafety.reviewMeta,...(raw.medicationSafety?.reviewMeta||{})}, checks:Array.isArray(raw.medicationSafety?.checks)?raw.medicationSafety.checks:d.medicationSafety.checks },
     careLoop,
     intake: { ...d.intake, ...(raw.intake || {}) },
@@ -518,6 +534,43 @@ function submitProCheckin(){
   render();
 }
 
+function toggleRehabExercise(idx){
+  state.rehabNutrition.exercises[idx].completed = !state.rehabNutrition.exercises[idx].completed;
+  event('PULMONARY_REHAB_UPDATED', { detail: `Tập thở: ${state.rehabNutrition.exercises[idx].name} -> ${state.rehabNutrition.exercises[idx].completed ? 'Đã tập' : 'Chưa tập'}` });
+  save();
+  render();
+}
+
+function patientRehabSection(){
+  const r = state.rehabNutrition;
+  return `<section class="card rehab-patient-card">
+    <small>PHỤC HỒI CHỨC NĂNG PHỔI & DINH DƯỠNG TẠI NHÀ</small>
+    <h3>Tập thở chúm môi & Dinh dưỡng chống suy kiệt</h3>
+    <p>Duy trì dung tích phổi và cân nặng 58kg để đảm bảo thể lực tiếp tục điều trị.</p>
+
+    <div class="rehab-exercises-list">
+      <b>3 Bài tập phục hồi phổi mỗi ngày:</b>
+      ${r.exercises.map((ex, idx) => `
+        <div class="rehab-exercise-item ${ex.completed ? 'completed' : ''}">
+          <div class="rehab-exercise-top">
+            <b>${ex.name}</b>
+            <span class="pill ${ex.completed ? 'green' : 'yellow'}">${ex.duration}</span>
+          </div>
+          <p>${ex.instruction}</p>
+          <button class="${ex.completed ? 'primary' : 'outline'}" onclick="toggleRehabExercise(${idx})">
+            ${ex.completed ? '✓ Đã hoàn thành hôm nay' : '○ Đánh dấu đã tập'}
+          </button>
+        </div>
+      `).join('')}
+    </div>
+
+    <div class="rehab-nutrition-tip">
+      <b>💡 Lời khuyên dinh dưỡng từ Bác sĩ:</b>
+      <p>${r.dietPlan}</p>
+    </div>
+  </section>`;
+}
+
 function patient(){
   const active = state.encounterState === 'home-care-active';
   return shell(`${patientSummary()}<div class="grid two">
@@ -525,6 +578,7 @@ function patient(){
     <section class="card"><small>THUỐC HÔM NAY</small><h3>Osimertinib 80 mg</h3><p>Uống 1 viên mỗi ngày, không nghiền viên. Demo CDS: chú ý tiêu chảy, ban da, khó thở mới.</p><div class="actions">${button(state.home.medicationTakenToday?'Đã ghi nhận uống':'Đánh dấu đã uống','takeMed()','primary')}${button('Báo quên liều','missDose()','outline')}</div><meter min="0" max="42" value="${state.patient.adherence.taken}"></meter><small>${state.patient.adherence.taken}/${state.patient.adherence.total} liều · quên ${state.patient.adherence.missed}</small></section>
   </div>
   ${patientDailyCheckin()}
+  ${patientRehabSection()}
   <div class="grid two">
     <section class="card"><small>KHAI NHANH TÁI KHÁM</small><label>Mục tiêu lần này<input value="${state.previsit.goal}" oninput="update(['previsit','goal'],this.value)" placeholder="Đánh giá đáp ứng, độc tính, cấp thuốc..." /></label><label>Thay đổi từ lần trước<textarea oninput="update(['previsit','changes'],this.value)" placeholder="VD: tiêu chảy 3-4 lần/ngày, ban da nhẹ...">${state.previsit.changes}</textarea></label>${button('Gửi thông tin cho khoa','advance("previsit-submitted","PREVISIT_SUBMITTED")','primary')}</section>
     <section class="card dangerZone"><small>BÁO TRIỆU CHỨNG</small><h3>Triage độc tính tại nhà</h3><p>Chọn nhanh triệu chứng. Nếu khó thở khi nghỉ/đau ngực/lơ mơ → popup đỏ gửi cả BS và ĐD.</p><div class="symptoms">${['Tiêu chảy','Ban da','Mệt','Sốt','Đau ngực','Khó thở khi nghỉ'].map(s=>button(s, s==='Khó thở khi nghỉ'?'redDyspnea()':'yellowSymptom("'+s+'")', s==='Khó thở khi nghỉ'?'danger':'outline')).join('')}</div></section>
@@ -1088,7 +1142,56 @@ function reviewBiomarkers(){
   render();
 }
 
-function doctor(){ return shell(`${patientSummary()}${medicationSafetyBrief()}${ddiCheckerPanel()}${safetyLabsPanel()}${biomarkerEvolutionPanel()}${proTrendDashboard()}${recistAssessmentBrief()}${ctcaeToxicityGuide()}${mdtConsultationPanel()}${safetyQueue()}${doctorCareSnapshot()}${escalationReview()}${triageHandoff()}${doctorPatientVoice()}<div class="decision-layout"><section class="card"><small>DECISION BRIEF · TUẦN 6</small><h2>Tiếp tục điều trị hay cần đánh giá thêm?</h2><p class="lead">Bản tóm tắt cho một quyết định — không phải bệnh án. Mọi gợi ý cần bác sĩ xác nhận.</p>${patientVoice()}<div class="decision-lens"><small>DECISION LENS · FRAMING MÔ PHỎNG</small><h3>Câu hỏi lần khám</h3><b>Có thể tiếp tục liều hiện tại trong khi hoàn thiện dữ liệu an toàn và đáp ứng không?</b><div class="lens-grid"><div><small>Tín hiệu ủng hộ</small><p>Tuân thủ tốt · molecular phù hợp · độc tính demo G1–2</p></div><div><small>Next-best-information</small><p>CT tuần 8 · ECG/QTc · điện giải · xác minh toxicity trực tiếp</p></div></div><h3>Điểm bất định cần ghi nhận</h3>${uncertainties()}</div><div class="brief-columns"><div><h3>Dữ kiện mô phỏng</h3>${briefFacts(state.decisionBrief.facts,'fact')}</div><div><h3>Người bệnh báo cáo</h3>${briefFacts(state.decisionBrief.patientReported,'reported')}</div></div><h3>Evidence map · bấm từng mục để xác nhận đã review</h3>${evidenceMap()}${readinessPanel()}<h3>Safety gates</h3><div class="gates">${state.decisionBrief.safetyGates.map(g=>`<div class="gate ${g.status}"><span>${g.status==='ready'||g.status==='clear'?'✓':'!'}</span><div><b>${g.label}</b><small>${g.detail}</small></div></div>`).join('')}</div></section><section class="card"><small>CDS OPTIONS · KHÔNG PHẢI Y LỆNH</small><h2>Các hướng xử trí để bác sĩ cân nhắc</h2>${decisionOptions()}<label>Lý do quyết định / lý do từ chối gợi ý<textarea oninput="update(['doctor','decisionReason'],this.value)" placeholder="Bắt buộc ghi lý do trước khi xác nhận">${state.doctor.decisionReason}</textarea></label><div class="actions">${can('ready-for-doctor') ? button('Nhận ca','advance("doctor-examining","DOCTOR_ACCEPTED_CASE")','outline') : button('Chờ ĐD hoàn tất tiếp nhận','void(0)','disabled')}${hasUnresolvedRed() ? button('Đang có cảnh báo đỏ · phải xử trí trước','void(0)','disabled') : !decisionReady() ? button('Review evidence + xác nhận data gap trước','void(0)','disabled') : can('doctor-examining') && state.doctor.decisionReason.trim() ? button('Xác nhận quyết định · tạo handoff','confirmDecision()','primary') : button('Cần nhận ca + ghi lý do','void(0)','disabled')}</div></section><aside class="sticky"><section class="card evidence"><small>NGUỒN & PHIÊN BẢN</small><h3>${state.decisionBrief.evidence.title}</h3><p>${state.decisionBrief.evidence.version}</p><div class="warning">${state.decisionBrief.evidence.note}</div><hr><b>Dữ liệu còn thiếu</b><ul>${state.decisionBrief.safetyGates.filter(g=>g.status==='missing').map(g=>`<li>${g.label}</li>`).join('')}</ul></section></aside></div>${activityLog()}`); }
+function rehabAssessmentPanel(){
+  const r = state.rehabNutrition;
+  const completedCount = r.exercises.filter(ex => ex.completed).length;
+  return `<section class="card rehab-admin-card"><small>PULMONARY REHABILITATION & NUTRITION STATUS · THỂ LỰC & DINH DƯỠNG</small>
+    <div class="rehab-admin-header">
+      <div>
+        <h3>Thể trạng: ECOG 0 · BMI ${r.bmi} kg/m² (${r.weightKg}kg / ${r.heightCm}cm)</h3>
+        <p>Sụt cân 6 tháng: ${r.weightChange6MoPct}% (${r.cachexiaRisk}) · Tuân thủ tập thở: ${completedCount}/${r.exercises.length} bài tập</p>
+        <small>Mục tiêu: Duy trì khối cơ nạc, phòng ngừa suy kiệt (Cachexia) và cải thiện dung tích sống của phổi</small>
+      </div>
+      <div>
+        ${r.reviewed ? pill(`BS/ĐD đã review thể lực · ${r.reviewMeta?.reviewedAt || ''}`, 'green') : button('Xác nhận review Thể lực & Phổi', 'reviewRehabNutrition()', 'primary')}
+      </div>
+    </div>
+
+    <div class="rehab-admin-grid">
+      <div class="rehab-tile">
+        <small>Chỉ số Khối cơ thể (BMI)</small>
+        <b>${r.bmi} kg/m²</b>
+        <span>Cân nặng 58.0 kg · Ổn định</span>
+      </div>
+      <div class="rehab-tile">
+        <small>Nguy cơ suy kiệt (Cachexia)</small>
+        <b>${r.cachexiaRisk}</b>
+        <span>Sụt < 5% trong 6 tháng</span>
+      </div>
+      <div class="rehab-tile">
+        <small>Tập thở chúm môi & Cơ hoành</small>
+        <b>${completedCount === 3 ? '✓ Hoàn thành tốt' : `${completedCount}/3 bài đã tập`}</b>
+        <span>Tăng cường trao đổi khí SpO2</span>
+      </div>
+    </div>
+  </section>`;
+}
+
+function reviewRehabNutrition(){
+  if(!['doctor','nurse'].includes(state.role)) return;
+  state.rehabNutrition.reviewed = true;
+  state.rehabNutrition.reviewMeta = {
+    planId: state.careLoop.plan.planId,
+    revision: state.careLoop.plan.revision,
+    reviewedAt: new Date().toLocaleString('vi-VN'),
+    reviewedBy: state.role === 'doctor' ? 'BS. Mỹ Linh' : 'ĐD. Thu Hà'
+  };
+  event('REHAB_NUTRITION_REVIEWED', { detail: `Đã review thể lực ECOG 0, BMI ${state.rehabNutrition.bmi} và phục hồi chức năng phổi` });
+  save();
+  render();
+}
+
+function doctor(){ return shell(`${patientSummary()}${medicationSafetyBrief()}${ddiCheckerPanel()}${safetyLabsPanel()}${biomarkerEvolutionPanel()}${proTrendDashboard()}${recistAssessmentBrief()}${ctcaeToxicityGuide()}${rehabAssessmentPanel()}${mdtConsultationPanel()}${safetyQueue()}${doctorCareSnapshot()}${escalationReview()}${triageHandoff()}${doctorPatientVoice()}<div class="decision-layout"><section class="card"><small>DECISION BRIEF · TUẦN 6</small><h2>Tiếp tục điều trị hay cần đánh giá thêm?</h2><p class="lead">Bản tóm tắt cho một quyết định — không phải bệnh án. Mọi gợi ý cần bác sĩ xác nhận.</p>${patientVoice()}<div class="decision-lens"><small>DECISION LENS · FRAMING MÔ PHỎNG</small><h3>Câu hỏi lần khám</h3><b>Có thể tiếp tục liều hiện tại trong khi hoàn thiện dữ liệu an toàn và đáp ứng không?</b><div class="lens-grid"><div><small>Tín hiệu ủng hộ</small><p>Tuân thủ tốt · molecular phù hợp · độc tính demo G1–2</p></div><div><small>Next-best-information</small><p>CT tuần 8 · ECG/QTc · điện giải · xác minh toxicity trực tiếp</p></div></div><h3>Điểm bất định cần ghi nhận</h3>${uncertainties()}</div><div class="brief-columns"><div><h3>Dữ kiện mô phỏng</h3>${briefFacts(state.decisionBrief.facts,'fact')}</div><div><h3>Người bệnh báo cáo</h3>${briefFacts(state.decisionBrief.patientReported,'reported')}</div></div><h3>Evidence map · bấm từng mục để xác nhận đã review</h3>${evidenceMap()}${readinessPanel()}<h3>Safety gates</h3><div class="gates">${state.decisionBrief.safetyGates.map(g=>`<div class="gate ${g.status}"><span>${g.status==='ready'||g.status==='clear'?'✓':'!'}</span><div><b>${g.label}</b><small>${g.detail}</small></div></div>`).join('')}</div></section><section class="card"><small>CDS OPTIONS · KHÔNG PHẢI Y LỆNH</small><h2>Các hướng xử trí để bác sĩ cân nhắc</h2>${decisionOptions()}<label>Lý do quyết định / lý do từ chối gợi ý<textarea oninput="update(['doctor','decisionReason'],this.value)" placeholder="Bắt buộc ghi lý do trước khi xác nhận">${state.doctor.decisionReason}</textarea></label><div class="actions">${can('ready-for-doctor') ? button('Nhận ca','advance("doctor-examining","DOCTOR_ACCEPTED_CASE")','outline') : button('Chờ ĐD hoàn tất tiếp nhận','void(0)','disabled')}${hasUnresolvedRed() ? button('Đang có cảnh báo đỏ · phải xử trí trước','void(0)','disabled') : !decisionReady() ? button('Review evidence + xác nhận data gap trước','void(0)','disabled') : can('doctor-examining') && state.doctor.decisionReason.trim() ? button('Xác nhận quyết định · tạo handoff','confirmDecision()','primary') : button('Cần nhận ca + ghi lý do','void(0)','disabled')}</div></section><aside class="sticky"><section class="card evidence"><small>NGUỒN & PHIÊN BẢN</small><h3>${state.decisionBrief.evidence.title}</h3><p>${state.decisionBrief.evidence.version}</p><div class="warning">${state.decisionBrief.evidence.note}</div><hr><b>Dữ liệu còn thiếu</b><ul>${state.decisionBrief.safetyGates.filter(g=>g.status==='missing').map(g=>`<li>${g.label}</li>`).join('')}</ul></section></aside></div>${activityLog()}`); }
 function patientVoice(){ const p=state.previsit; const submitted=state.encounterState!=='previsit-draft'||p.submittedAt; return `<div class="patient-voice ${submitted?'submitted':''}"><div><small>PATIENT VOICE · NGUỒN NGƯỜI BỆNH TỰ BÁO CÁO</small><h3>${submitted?'Thông tin trước khám đã gửi':'Chưa có khai nhanh từ người bệnh'}</h3>${submitted?`<p><b>Mục tiêu:</b> ${p.goal||'Chưa nhập'}</p><p><b>Thay đổi:</b> ${p.changes||'Chưa nhập'}</p><small>Gửi lúc ${p.submittedAt||'không rõ'} · Không tự động xem là dữ kiện đã xác minh</small>`:'<p>Điều dưỡng/bác sĩ chưa nhận được patient voice. Đây là empty state, không phải lỗi hồ sơ.</p>'}</div><div>${submitted&&!p.doctorRead?button('Đánh dấu đã đọc','markPatientVoiceRead()','outline'):submitted?pill('BS đã đọc · patient-reported','green'):pill('Chờ người bệnh gửi')}</div></div>`; }
 function markPatientVoiceRead(){ state.previsit.doctorRead=true; event('PATIENT_VOICE_READ',{detail:'Bác sĩ đã đọc thông tin patient-reported trước khám'}); save(); render(); }
 function doctorPatientVoice(){ const v=state.patientVoice; if(v.status!=='submitted') return `<section class="card voice-empty"><small>PATIENT VOICE</small><b>Chưa có khai voice từ người bệnh</b><p>Đây là khoảng trống thông tin, không phải dữ liệu âm tính.</p></section>`; return `<section class="card patient-voice"><div><small>PATIENT VOICE · CHƯA XÁC MINH</small><h3>Người bệnh đã gửi bản nháp</h3><p>${v.transcript}</p><small>${v.capturedAt} · nguồn: người bệnh</small></div><button onclick="markVoiceRead()" class="${v.readByDoctor?'outline':'primary'}">${v.readByDoctor?'Đã đọc':'Đánh dấu đã đọc'}</button></section>`; }
