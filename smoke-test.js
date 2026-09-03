@@ -149,8 +149,17 @@ run("reviewBiomarkers()");
 check(run("state.biomarkers.reviewed") === true, 'biomarkers marked as reviewed');
 check(run("state.decisionBrief.evidenceMap.find(x=>x.id==='molecular').reviewed") === true, 'evidence map molecular synced');
 
+// DDI & Medication Reconciliation assertions
+check(run("state.ddiChecker.concomitantMeds.length") === 4, 'ddiChecker has 4 concomitant meds');
+check(run("state.ddiChecker.interactions.length") === 3, 'ddiChecker detected 3 interactions');
+check(run("state.ddiChecker.reviewed") === false, 'ddiChecker initially unreviewed');
+run("reviewDdi()");
+check(run("state.ddiChecker.reviewed") === true, 'ddiChecker marked as reviewed');
+check(run("state.medicationSafety.reviewed['interactions']") === true, 'medication interactions review synced');
+check(run("state.medicationSafety.checks.find(x=>x.id==='interactions').value").includes('Ngưng Omeprazole'), 'medication check value updated after DDI review');
+
 console.log('LungCare smoke test: PASS');
-console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate, recist 1.1, ctcae v5.0, teach-back 10-point, mdt workflow, pro diary, soap summary, safety labs, biomarkers');
+console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate, recist 1.1, ctcae v5.0, teach-back 10-point, mdt workflow, pro diary, soap summary, safety labs, biomarkers, ddi checker');
 
 function stateValue(key) {
   return run(`Boolean(state.safetyRequests[0] && state.safetyRequests[0].${key})`);
