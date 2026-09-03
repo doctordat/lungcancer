@@ -64,8 +64,22 @@ check(!appRoot.innerHTML.includes('DEMO / QA SCENARIO'), 'patient does not see d
 run("state.role='doctor'; resetScenario('red')");
 check(run("state.scenario") === 'red' && run("state.alerts.some(a=>a.type==='red')"), 'clinician can reset demo scenario');
 
+// RECIST 1.1 Assessment Brief assertions
+run("state = defaultState(); state.role='doctor'; state.encounterState='doctor-examining'");
+check(run("state.recist.targetLesions.length") === 2, 'recist has 2 target lesions');
+check(run("state.recist.sumChangePct") === -34.0, 'recist sum change is -34%');
+check(run("state.recist.reviewed") === false, 'recist initially unreviewed');
+run("reviewRecist()");
+check(run("state.recist.reviewed") === true, 'recist marked as reviewed');
+check(run("state.recist.reviewMeta.reviewedBy") === 'BS. Mỹ Linh', 'recist review metadata captured');
+check(run("state.decisionBrief.evidenceMap.find(x=>x.id==='response').reviewed") === true, 'response in evidence map synced to reviewed');
+
+const recistPersisted = run("JSON.stringify({...state, careLoop:{...state.careLoop, plan:{...state.careLoop.plan, revision:3}}, recist:{...state.recist, reviewed:true, reviewMeta:{planId:state.careLoop.plan.planId, revision:2, reviewedBy:'BS. Mỹ Linh'}}})");
+run(`state = normalize(JSON.parse(${JSON.stringify(recistPersisted)}))`);
+check(run("state.recist.reviewed") === false && run("state.recist.reviewMeta") === null, 'normalize invalidates old recist review on plan revision bump');
+
 console.log('LungCare smoke test: PASS');
-console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate');
+console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate, recist 1.1 brief');
 
 function stateValue(key) {
   return run(`Boolean(state.safetyRequests[0] && state.safetyRequests[0].${key})`);
