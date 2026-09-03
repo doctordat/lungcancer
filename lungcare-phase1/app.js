@@ -242,6 +242,27 @@ const defaultState = () => ({
       { week: 24, title: 'Theo dõi đáp ứng dài hạn', date: '18/12/2026 (Dự kiến)', badge: 'Kế hoạch', status: 'upcoming', desc: 'Đánh giá PFS dài hạn, kiểm tra toàn diện chất lượng sống và chức năng hô hấp.' }
     ]
   },
+  clinicalCalculators: {
+    inputs: {
+      age: 62,
+      sex: 'male',
+      weightKg: 58.0,
+      heightCm: 165,
+      serumCreatinineMgDl: 0.93,
+      qtIntervalMs: 390,
+      heartRateBpm: 72,
+      ecogScore: 0
+    },
+    results: {
+      crClCockcroftGault: 67.5,
+      qtcFFridericia: 414,
+      qtcBBazett: 427,
+      bsaDuBois: 1.63,
+      karnofskyScore: 100
+    },
+    reviewed: false,
+    reviewMeta: null
+  },
   alerts: []
 });
 
@@ -271,6 +292,12 @@ function normalize(raw) {
     },
     treatmentJourney: {
       milestones: Array.isArray(raw.treatmentJourney?.milestones) ? raw.treatmentJourney.milestones : d.treatmentJourney.milestones
+    },
+    clinicalCalculators: {
+      inputs: { ...d.clinicalCalculators.inputs, ...(raw.clinicalCalculators?.inputs || {}) },
+      results: { ...d.clinicalCalculators.results, ...(raw.clinicalCalculators?.results || {}) },
+      reviewMeta: (raw.clinicalCalculators?.reviewMeta && raw.clinicalCalculators.reviewMeta.planId===careLoop.plan.planId && raw.clinicalCalculators.reviewMeta.revision===careLoop.plan.revision) ? raw.clinicalCalculators.reviewMeta : null,
+      reviewed: Boolean(raw.clinicalCalculators?.reviewed && raw.clinicalCalculators?.reviewMeta?.planId===careLoop.plan.planId && raw.clinicalCalculators?.reviewMeta?.revision===careLoop.plan.revision)
     },
     medicationSafety: { ...d.medicationSafety, ...(raw.medicationSafety || {}), reviewed:{...d.medicationSafety.reviewed,...(raw.medicationSafety?.reviewed||{})}, reviewMeta:{...d.medicationSafety.reviewMeta,...(raw.medicationSafety?.reviewMeta||{})}, checks:Array.isArray(raw.medicationSafety?.checks)?raw.medicationSafety.checks:d.medicationSafety.checks },
     careLoop,
@@ -1333,7 +1360,152 @@ function reviewRehabNutrition(){
   render();
 }
 
-function doctor(){ return shell(`${patientSummary()}${medicationSafetyBrief()}${ddiCheckerPanel()}${safetyLabsPanel()}${biomarkerEvolutionPanel()}${proTrendDashboard()}${recistAssessmentBrief()}${ctcaeToxicityGuide()}${rehabAssessmentPanel()}${mdtConsultationPanel()}${safetyQueue()}${doctorCareSnapshot()}${escalationReview()}${triageHandoff()}${doctorPatientVoice()}<div class="decision-layout"><section class="card"><small>DECISION BRIEF · TUẦN 6</small><h2>Tiếp tục điều trị hay cần đánh giá thêm?</h2><p class="lead">Bản tóm tắt cho một quyết định — không phải bệnh án. Mọi gợi ý cần bác sĩ xác nhận.</p>${patientVoice()}<div class="decision-lens"><small>DECISION LENS · FRAMING MÔ PHỎNG</small><h3>Câu hỏi lần khám</h3><b>Có thể tiếp tục liều hiện tại trong khi hoàn thiện dữ liệu an toàn và đáp ứng không?</b><div class="lens-grid"><div><small>Tín hiệu ủng hộ</small><p>Tuân thủ tốt · molecular phù hợp · độc tính demo G1–2</p></div><div><small>Next-best-information</small><p>CT tuần 8 · ECG/QTc · điện giải · xác minh toxicity trực tiếp</p></div></div><h3>Điểm bất định cần ghi nhận</h3>${uncertainties()}</div><div class="brief-columns"><div><h3>Dữ kiện mô phỏng</h3>${briefFacts(state.decisionBrief.facts,'fact')}</div><div><h3>Người bệnh báo cáo</h3>${briefFacts(state.decisionBrief.patientReported,'reported')}</div></div><h3>Evidence map · bấm từng mục để xác nhận đã review</h3>${evidenceMap()}${readinessPanel()}<h3>Safety gates</h3><div class="gates">${state.decisionBrief.safetyGates.map(g=>`<div class="gate ${g.status}"><span>${g.status==='ready'||g.status==='clear'?'✓':'!'}</span><div><b>${g.label}</b><small>${g.detail}</small></div></div>`).join('')}</div></section><section class="card"><small>CDS OPTIONS · KHÔNG PHẢI Y LỆNH</small><h2>Các hướng xử trí để bác sĩ cân nhắc</h2>${decisionOptions()}<label>Lý do quyết định / lý do từ chối gợi ý<textarea oninput="update(['doctor','decisionReason'],this.value)" placeholder="Bắt buộc ghi lý do trước khi xác nhận">${state.doctor.decisionReason}</textarea></label><div class="actions">${can('ready-for-doctor') ? button('Nhận ca','advance("doctor-examining","DOCTOR_ACCEPTED_CASE")','outline') : button('Chờ ĐD hoàn tất tiếp nhận','void(0)','disabled')}${hasUnresolvedRed() ? button('Đang có cảnh báo đỏ · phải xử trí trước','void(0)','disabled') : !decisionReady() ? button('Review evidence + xác nhận data gap trước','void(0)','disabled') : can('doctor-examining') && state.doctor.decisionReason.trim() ? button('Xác nhận quyết định · tạo handoff','confirmDecision()','primary') : button('Cần nhận ca + ghi lý do','void(0)','disabled')}</div></section><aside class="sticky"><section class="card evidence"><small>NGUỒN & PHIÊN BẢN</small><h3>${state.decisionBrief.evidence.title}</h3><p>${state.decisionBrief.evidence.version}</p><div class="warning">${state.decisionBrief.evidence.note}</div><hr><b>Dữ liệu còn thiếu</b><ul>${state.decisionBrief.safetyGates.filter(g=>g.status==='missing').map(g=>`<li>${g.label}</li>`).join('')}</ul></section></aside></div>${activityLog()}`); }
+function recalculateClinicalScores(){
+  const inp = state.clinicalCalculators.inputs;
+  const age = Number(inp.age) || 62;
+  const wt = Number(inp.weightKg) || 58;
+  const ht = Number(inp.heightCm) || 165;
+  const scr = Number(inp.serumCreatinineMgDl) || 0.93;
+  const qt = Number(inp.qtIntervalMs) || 390;
+  const hr = Number(inp.heartRateBpm) || 72;
+  const ecog = Number(inp.ecogScore) || 0;
+
+  // 1. Cockcroft-Gault CrCl (mL/min)
+  // CrCl = [(140 - Age) * Wt] / (72 * Scr) * (0.85 if female)
+  let crcl = ((140 - age) * wt) / (72 * Math.max(0.1, scr));
+  if(inp.sex === 'female') crcl *= 0.85;
+
+  // 2. QTc Fridericia & Bazett
+  const rr = 60 / Math.max(30, hr); // seconds
+  const qtcF = qt / Math.cbrt(rr);
+  const qtcB = qt / Math.sqrt(rr);
+
+  // 3. BSA DuBois (m2) = 0.007184 * (height^0.725) * (weight^0.425)
+  const bsa = 0.007184 * Math.pow(ht, 0.725) * Math.pow(wt, 0.425);
+
+  // 4. ECOG to Karnofsky
+  const kpsMap = { 0: 100, 1: 80, 2: 60, 3: 40, 4: 20 };
+  const kps = kpsMap[ecog] || 100;
+
+  state.clinicalCalculators.results = {
+    crClCockcroftGault: Math.round(crcl * 10) / 10,
+    qtcFFridericia: Math.round(qtcF),
+    qtcBBazett: Math.round(qtcB),
+    bsaDuBois: Math.round(bsa * 100) / 100,
+    karnofskyScore: kps
+  };
+}
+
+function updateCalculatorInput(field, val){
+  state.clinicalCalculators.inputs[field] = val;
+  recalculateClinicalScores();
+  save();
+  render();
+}
+
+function clinicalCalculatorsPanel(){
+  recalculateClinicalScores();
+  const c = state.clinicalCalculators;
+  const inp = c.inputs;
+  const res = c.results;
+
+  return `<section class="card calc-widget-card"><small>EMBEDDED MEDICAL CALCULATORS · CÔNG CỤ TÍNH TOÁN LÂM SÀNG (CHUẨN MDCALC)</small>
+    <div class="calc-widget-header">
+      <div>
+        <h3>Bộ tính toán Động học An toàn Thận, Tim mạch & Thể trạng</h3>
+        <p>Tự động nạp thông số bệnh nhân · Hỗ trợ tính toán thời gian thực theo công thức chuẩn quốc tế</p>
+      </div>
+      <div>
+        ${c.reviewed ? pill(`BS đã review tính toán · ${c.reviewMeta?.reviewedAt || ''}`, 'green') : button('Xác nhận kết quả tính toán', 'reviewCalculators()', 'primary')}
+      </div>
+    </div>
+
+    <div class="calc-widget-grid">
+      <!-- Calculator 1: Cockcroft-Gault -->
+      <div class="calc-box">
+        <div class="calc-box-title">
+          <b>1. Độ thanh thải Creatinine (Cockcroft-Gault)</b>
+          <span class="pill ${res.crClCockcroftGault >= 50 ? 'green' : 'yellow'}">eGFR: ${res.crClCockcroftGault} mL/min</span>
+        </div>
+        <div class="calc-inputs-row">
+          <label>Scr (mg/dL): <input type="number" step="0.05" value="${inp.serumCreatinineMgDl}" oninput="updateCalculatorInput('serumCreatinineMgDl', this.value)"/></label>
+          <label>Cân nặng (kg): <input type="number" value="${inp.weightKg}" oninput="updateCalculatorInput('weightKg', this.value)"/></label>
+        </div>
+        <div class="calc-interpret">
+          <b>Đánh giá liều Osimertinib:</b> ${res.crClCockcroftGault >= 50 ? 'Chức năng thận tốt, dùng liều chuẩn 80mg/ngày không cần chỉnh.' : 'Suy thận nhẹ-vừa, vẫn an toàn với 80mg/ngày, theo dõi creatinin định kỳ.'}
+        </div>
+      </div>
+
+      <!-- Calculator 2: QTc Fridericia & Bazett -->
+      <div class="calc-box">
+        <div class="calc-box-title">
+          <b>2. Khoảng QTc tim mạch (Fridericia & Bazett)</b>
+          <span class="pill ${res.qtcFFridericia <= 450 ? 'green' : 'red'}">QTcF: ${res.qtcFFridericia} ms</span>
+        </div>
+        <div class="calc-inputs-row">
+          <label>Khoảng QT (ms): <input type="number" step="5" value="${inp.qtIntervalMs}" oninput="updateCalculatorInput('qtIntervalMs', this.value)"/></label>
+          <label>Nhịp tim HR (bpm): <input type="number" step="1" value="${inp.heartRateBpm}" oninput="updateCalculatorInput('heartRateBpm', this.value)"/></label>
+        </div>
+        <div class="calc-interpret">
+          <b>Đánh giá an toàn tim mạch:</b> QTc Bazett = ${res.qtcBBazett} ms | ${res.qtcFFridericia <= 450 ? 'Ngưỡng an toàn bình thường (< 450ms ở nam), nguy cơ loạn nhịp thấp.' : '⚠ QTcF kéo dài (> 450ms) -> Cần kiểm tra điện giải K+/Mg2+ và ECG lại.'}
+        </div>
+      </div>
+
+      <!-- Calculator 3: BSA DuBois -->
+      <div class="calc-box">
+        <div class="calc-box-title">
+          <b>3. Diện tích bề mặt cơ thể (BSA DuBois)</b>
+          <span class="pill blue">${res.bsaDuBois} m²</span>
+        </div>
+        <div class="calc-inputs-row">
+          <label>Chiều cao (cm): <input type="number" value="${inp.heightCm}" oninput="updateCalculatorInput('heightCm', this.value)"/></label>
+          <label>Cân nặng (kg): <input type="number" value="${inp.weightKg}" oninput="updateCalculatorInput('weightKg', this.value)"/></label>
+        </div>
+        <div class="calc-interpret">
+          <b>Ứng dụng:</b> Dùng tính liều hóa trị phối hợp hoặc thuốc diện tích thân thể nếu cần chuyển đổi phác đồ.
+        </div>
+      </div>
+
+      <!-- Calculator 4: ECOG to Karnofsky (KPS) -->
+      <div class="calc-box">
+        <div class="calc-box-title">
+          <b>4. Quy đổi Thể trạng ECOG sang KPS (%)</b>
+          <span class="pill green">KPS ${res.karnofskyScore}%</span>
+        </div>
+        <div class="calc-inputs-row">
+          <label>Thang điểm ECOG: 
+            <select onchange="updateCalculatorInput('ecogScore', this.value)">
+              <option value="0" ${inp.ecogScore==0?'selected':''}>ECOG 0 (Hoạt động bình thường)</option>
+              <option value="1" ${inp.ecogScore==1?'selected':''}>ECOG 1 (Hạn chế gắng sức nặng)</option>
+              <option value="2" ${inp.ecogScore==2?'selected':''}>ECOG 2 (Tự chăm sóc, nằm < 50% ngày)</option>
+              <option value="3" ${inp.ecogScore==3?'selected':''}>ECOG 3 (Nằm giường > 50% ngày)</option>
+              <option value="4" ${inp.ecogScore==4?'selected':''}>ECOG 4 (Liệt giường hoàn toàn)</option>
+            </select>
+          </label>
+        </div>
+        <div class="calc-interpret">
+          <b>Ý nghĩa:</b> Thể trạng KPS ${res.karnofskyScore}% phản ánh bệnh nhân hoàn toàn đủ tiêu chuẩn tiếp tục liệu pháp đích ngoại trú.
+        </div>
+      </div>
+    </div>
+  </section>`;
+}
+
+function reviewCalculators(){
+  if(state.role !== 'doctor') return;
+  state.clinicalCalculators.reviewed = true;
+  state.clinicalCalculators.reviewMeta = {
+    planId: state.careLoop.plan.planId,
+    revision: state.careLoop.plan.revision,
+    reviewedAt: new Date().toLocaleString('vi-VN'),
+    reviewedBy: 'BS. Mỹ Linh'
+  };
+  event('CLINICAL_CALCULATORS_REVIEWED', { detail: `Đã review tính toán CrCl ${state.clinicalCalculators.results.crClCockcroftGault} mL/min và QTcF ${state.clinicalCalculators.results.qtcFFridericia} ms` });
+  save();
+  render();
+}
+
+function doctor(){ return shell(`${patientSummary()}${medicationSafetyBrief()}${clinicalCalculatorsPanel()}${ddiCheckerPanel()}${safetyLabsPanel()}${biomarkerEvolutionPanel()}${proTrendDashboard()}${recistAssessmentBrief()}${ctcaeToxicityGuide()}${rehabAssessmentPanel()}${mdtConsultationPanel()}${safetyQueue()}${doctorCareSnapshot()}${escalationReview()}${triageHandoff()}${doctorPatientVoice()}<div class="decision-layout"><section class="card"><small>DECISION BRIEF · TUẦN 6</small><h2>Tiếp tục điều trị hay cần đánh giá thêm?</h2><p class="lead">Bản tóm tắt cho một quyết định — không phải bệnh án. Mọi gợi ý cần bác sĩ xác nhận.</p>${patientVoice()}<div class="decision-lens"><small>DECISION LENS · FRAMING MÔ PHỎNG</small><h3>Câu hỏi lần khám</h3><b>Có thể tiếp tục liều hiện tại trong khi hoàn thiện dữ liệu an toàn và đáp ứng không?</b><div class="lens-grid"><div><small>Tín hiệu ủng hộ</small><p>Tuân thủ tốt · molecular phù hợp · độc tính demo G1–2</p></div><div><small>Next-best-information</small><p>CT tuần 8 · ECG/QTc · điện giải · xác minh toxicity trực tiếp</p></div></div><h3>Điểm bất định cần ghi nhận</h3>${uncertainties()}</div><div class="brief-columns"><div><h3>Dữ kiện mô phỏng</h3>${briefFacts(state.decisionBrief.facts,'fact')}</div><div><h3>Người bệnh báo cáo</h3>${briefFacts(state.decisionBrief.patientReported,'reported')}</div></div><h3>Evidence map · bấm từng mục để xác nhận đã review</h3>${evidenceMap()}${readinessPanel()}<h3>Safety gates</h3><div class="gates">${state.decisionBrief.safetyGates.map(g=>`<div class="gate ${g.status}"><span>${g.status==='ready'||g.status==='clear'?'✓':'!'}</span><div><b>${g.label}</b><small>${g.detail}</small></div></div>`).join('')}</div></section><section class="card"><small>CDS OPTIONS · KHÔNG PHẢI Y LỆNH</small><h2>Các hướng xử trí để bác sĩ cân nhắc</h2>${decisionOptions()}<label>Lý do quyết định / lý do từ chối gợi ý<textarea oninput="update(['doctor','decisionReason'],this.value)" placeholder="Bắt buộc ghi lý do trước khi xác nhận">${state.doctor.decisionReason}</textarea></label><div class="actions">${can('ready-for-doctor') ? button('Nhận ca','advance("doctor-examining","DOCTOR_ACCEPTED_CASE")','outline') : button('Chờ ĐD hoàn tất tiếp nhận','void(0)','disabled')}${hasUnresolvedRed() ? button('Đang có cảnh báo đỏ · phải xử trí trước','void(0)','disabled') : !decisionReady() ? button('Review evidence + xác nhận data gap trước','void(0)','disabled') : can('doctor-examining') && state.doctor.decisionReason.trim() ? button('Xác nhận quyết định · tạo handoff','confirmDecision()','primary') : button('Cần nhận ca + ghi lý do','void(0)','disabled')}</div></section><aside class="sticky"><section class="card evidence"><small>NGUỒN & PHIÊN BẢN</small><h3>${state.decisionBrief.evidence.title}</h3><p>${state.decisionBrief.evidence.version}</p><div class="warning">${state.decisionBrief.evidence.note}</div><hr><b>Dữ liệu còn thiếu</b><ul>${state.decisionBrief.safetyGates.filter(g=>g.status==='missing').map(g=>`<li>${g.label}</li>`).join('')}</ul></section></aside></div>${activityLog()}`); }
 function patientVoice(){ const p=state.previsit; const submitted=state.encounterState!=='previsit-draft'||p.submittedAt; return `<div class="patient-voice ${submitted?'submitted':''}"><div><small>PATIENT VOICE · NGUỒN NGƯỜI BỆNH TỰ BÁO CÁO</small><h3>${submitted?'Thông tin trước khám đã gửi':'Chưa có khai nhanh từ người bệnh'}</h3>${submitted?`<p><b>Mục tiêu:</b> ${p.goal||'Chưa nhập'}</p><p><b>Thay đổi:</b> ${p.changes||'Chưa nhập'}</p><small>Gửi lúc ${p.submittedAt||'không rõ'} · Không tự động xem là dữ kiện đã xác minh</small>`:'<p>Điều dưỡng/bác sĩ chưa nhận được patient voice. Đây là empty state, không phải lỗi hồ sơ.</p>'}</div><div>${submitted&&!p.doctorRead?button('Đánh dấu đã đọc','markPatientVoiceRead()','outline'):submitted?pill('BS đã đọc · patient-reported','green'):pill('Chờ người bệnh gửi')}</div></div>`; }
 function markPatientVoiceRead(){ state.previsit.doctorRead=true; event('PATIENT_VOICE_READ',{detail:'Bác sĩ đã đọc thông tin patient-reported trước khám'}); save(); render(); }
 function doctorPatientVoice(){ const v=state.patientVoice; if(v.status!=='submitted') return `<section class="card voice-empty"><small>PATIENT VOICE</small><b>Chưa có khai voice từ người bệnh</b><p>Đây là khoảng trống thông tin, không phải dữ liệu âm tính.</p></section>`; return `<section class="card patient-voice"><div><small>PATIENT VOICE · CHƯA XÁC MINH</small><h3>Người bệnh đã gửi bản nháp</h3><p>${v.transcript}</p><small>${v.capturedAt} · nguồn: người bệnh</small></div><button onclick="markVoiceRead()" class="${v.readByDoctor?'outline':'primary'}">${v.readByDoctor?'Đã đọc':'Đánh dấu đã đọc'}</button></section>`; }
