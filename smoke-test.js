@@ -180,8 +180,20 @@ check(run("state.caregiverSync.smsHistory.length") === initialSmsLen + 2, 'test 
 check(run("state.treatmentJourney.milestones.length") === 5, 'treatmentJourney has 5 milestones');
 check(run("state.treatmentJourney.milestones[2].badge") === 'PR (-34%)', 'milestone 2 has PR badge');
 
+// Clinical Calculators (MDCalc standard) assertions
+run("recalculateClinicalScores()");
+check(run("state.clinicalCalculators.results.crClCockcroftGault") === 67.6, 'crCl Cockcroft-Gault correctly calculated');
+check(run("state.clinicalCalculators.results.qtcFFridericia") === 414, 'qtcF Fridericia correctly calculated');
+check(run("state.clinicalCalculators.results.bsaDuBois") === 1.63, 'bsa DuBois correctly calculated');
+check(run("state.clinicalCalculators.results.karnofskyScore") === 100, 'kps 100% for ECOG 0');
+
+run("updateCalculatorInput('serumCreatinineMgDl', 1.86)");
+check(run("state.clinicalCalculators.results.crClCockcroftGault") < 35, 'crCl reactive update works');
+run("reviewCalculators()");
+check(run("state.clinicalCalculators.reviewed") === true, 'calculators marked reviewed');
+
 console.log('LungCare smoke test: PASS');
-console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate, recist 1.1, ctcae v5.0, teach-back 10-point, mdt workflow, pro diary, soap summary, safety labs, biomarkers, ddi checker, rehab nutrition, caregiver sync, treatment journey');
+console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate, recist 1.1, ctcae v5.0, teach-back 10-point, mdt workflow, pro diary, soap summary, safety labs, biomarkers, ddi checker, rehab nutrition, caregiver sync, treatment journey, clinical calculators');
 
 function stateValue(key) {
   return run(`Boolean(state.safetyRequests[0] && state.safetyRequests[0].${key})`);
