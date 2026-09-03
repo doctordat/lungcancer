@@ -233,6 +233,15 @@ const defaultState = () => ({
       { id: 'SMS-102', timestamp: '30/08/2026 10:15', type: 'warning', recipient: '0918 234 567 (Anh Tuấn)', message: '[LungCare Nhắc nhở] Bố Minh vừa báo quên uống liều thuốc sáng nay. Nhắc Bố uống bù trước 20:00 tối nay nếu có thể.' }
     ]
   },
+  treatmentJourney: {
+    milestones: [
+      { week: 0, title: 'Chẩn đoán & Khởi trị', date: '03/07/2026', badge: 'Baseline', status: 'completed', desc: 'NSCLC IVA EGFR ex19del. Khởi trị Osimertinib 80mg/ngày. Kích thước u ban đầu 50mm.' },
+      { week: 4, title: 'Đánh giá an toàn sớm', date: '31/07/2026', badge: 'Safety OK', status: 'completed', desc: 'Dung nạp tốt, xuất hiện Tiêu chảy G1 và Ban da G1. ECG QTcF 418ms bình thường.' },
+      { week: 8, title: 'Tái khám & CT đánh giá', date: '28/08/2026', badge: 'PR (-34%)', status: 'active', desc: 'CT ngực: Đáp ứng một phần (-34.0%). ctDNA giảm sâu còn 0.08%. Không có đột biến kháng thuốc.' },
+      { week: 16, title: 'Tái khám định kỳ & MRI não', date: '23/10/2026 (Dự kiến)', badge: 'Kế hoạch', status: 'upcoming', desc: 'CT lồng ngực + MRI sọ não kiểm tra di căn thần kinh trung ương + Sinh thiết lỏng ctDNA đợt 3.' },
+      { week: 24, title: 'Theo dõi đáp ứng dài hạn', date: '18/12/2026 (Dự kiến)', badge: 'Kế hoạch', status: 'upcoming', desc: 'Đánh giá PFS dài hạn, kiểm tra toàn diện chất lượng sống và chức năng hô hấp.' }
+    ]
+  },
   alerts: []
 });
 
@@ -259,6 +268,9 @@ function normalize(raw) {
       primaryCaregiver: { ...d.caregiverSync.primaryCaregiver, ...(raw.caregiverSync?.primaryCaregiver || {}) },
       preferences: { ...d.caregiverSync.preferences, ...(raw.caregiverSync?.preferences || {}) },
       smsHistory: Array.isArray(raw.caregiverSync?.smsHistory) ? raw.caregiverSync.smsHistory : d.caregiverSync.smsHistory
+    },
+    treatmentJourney: {
+      milestones: Array.isArray(raw.treatmentJourney?.milestones) ? raw.treatmentJourney.milestones : d.treatmentJourney.milestones
     },
     medicationSafety: { ...d.medicationSafety, ...(raw.medicationSafety || {}), reviewed:{...d.medicationSafety.reviewed,...(raw.medicationSafety?.reviewed||{})}, reviewMeta:{...d.medicationSafety.reviewMeta,...(raw.medicationSafety?.reviewMeta||{})}, checks:Array.isArray(raw.medicationSafety?.checks)?raw.medicationSafety.checks:d.medicationSafety.checks },
     careLoop,
@@ -352,6 +364,39 @@ function printHandoutTemplate(){
   </div>`;
 }
 
+function treatmentJourneyTimeline(){
+  const ms = state.treatmentJourney.milestones;
+  return `<section class="card journey-card">
+    <div class="journey-header">
+      <div>
+        <small>ONCOLOGY TREATMENT ROADMAP · HÀNH TRÌNH ĐIỀU TRỊ UNG THƯ PHỔI</small>
+        <h3>Tiến trình Cá thể hóa: Baseline -> Tuần 8 (Đáp ứng PR) -> Kế hoạch Tuần 16</h3>
+      </div>
+      <div>
+        ${pill('Phác đồ Bước 1: Osimertinib 80mg/ngày', 'purple')}
+      </div>
+    </div>
+
+    <div class="journey-timeline">
+      ${ms.map((m, idx) => `
+        <div class="journey-node ${m.status}">
+          <div class="journey-node-circle">
+            <span>${m.status === 'completed' ? '✓' : m.status === 'active' ? '●' : '○'}</span>
+          </div>
+          <div class="journey-node-content">
+            <div class="journey-node-top">
+              <b>Tuần ${m.week}: ${m.title}</b>
+              <span class="pill ${m.status === 'completed' ? 'green' : m.status === 'active' ? 'purple' : 'yellow'}">${m.badge}</span>
+            </div>
+            <small class="journey-date">${m.date}</small>
+            <p>${m.desc}</p>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  </section>`;
+}
+
 function shell(content){
   const roleMeta = { patient:['PT','Bệnh nhân','My Care'], nurse:['RN','Điều dưỡng','Nurse Station'], doctor:['DR','Bác sĩ','Clinical Command'] }[state.role];
   return `<div class="app">
@@ -368,6 +413,7 @@ function shell(content){
       ${topbar(roleMeta)}
       ${alertsStrip()}
       ${flowRibbon()}
+      ${treatmentJourneyTimeline()}
       ${content}
     </main>
     ${printHandoutTemplate()}
@@ -426,15 +472,26 @@ function openPrintHandout(){
 
 function topbar(roleMeta){
   return `<header class="top">
-    <div>
-      <small>${roleMeta[2].toUpperCase()}</small>
-      <h1>${roleMeta[1] === 'Bệnh nhân' ? 'Chào chú Minh' : roleMeta[1] === 'Điều dưỡng' ? 'Bàn giao điều trị hôm nay' : 'Case command center'}</h1>
+    <div class="top-title-area">
+      <div class="live-dot-wrap">
+        <span class="live-pulse"></span>
+        <small>${roleMeta[2].toUpperCase()} · HỆ THỐNG TRỰC TUYẾN</small>
+      </div>
+      <h1>${roleMeta[1] === 'Bệnh nhân' ? 'Chào chú Nguyễn Văn Minh' : roleMeta[1] === 'Điều dưỡng' ? 'Nurse Station · Bàn giao & Tiếp nhận' : 'Oncology Clinical Command Center'}</h1>
     </div>
-    <div class="top-actions">
-      ${state.role === 'doctor' ? button('📋 Copy tóm tắt EMR (SOAP)', 'copySoapSummary()', 'primary') : ''}
-      ${button('🖨 In hướng dẫn A4', 'openPrintHandout()', 'outline')}
-      ${pill('Demo CDS · không phải protocol · chờ clinical governance','purple')}
-      ${pill('Không dùng dữ liệu thật','green')}
+
+    <div class="top-actions-bar">
+      <div class="top-scenario-nav">
+        <span class="scenario-label">MÔ PHỎNG:</span>
+        <button class="pill-btn ${state.scenario==='routine'?'active':''}" onclick="resetScenario('routine')">Routine (PR)</button>
+        <button class="pill-btn ${state.scenario==='yellow'?'active':''}" onclick="resetScenario('yellow')">Triage Yellow</button>
+        <button class="pill-btn ${state.scenario==='red'?'active':''}" onclick="resetScenario('red')">Red Alert</button>
+      </div>
+
+      <div class="top-util-btns">
+        ${state.role === 'doctor' ? button('📋 Copy SOAP EMR', 'copySoapSummary()', 'primary') : ''}
+        ${button('🖨 In bản A4', 'openPrintHandout()', 'outline')}
+      </div>
     </div>
   </header>`;
 }

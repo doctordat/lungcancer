@@ -176,8 +176,12 @@ check(run("state.caregiverSync.smsHistory[0].message").includes('quên liều'),
 run("testCaregiverAlert()");
 check(run("state.caregiverSync.smsHistory.length") === initialSmsLen + 2, 'test alert dispatches caregiver SMS');
 
+// Treatment Journey Timeline assertions
+check(run("state.treatmentJourney.milestones.length") === 5, 'treatmentJourney has 5 milestones');
+check(run("state.treatmentJourney.milestones[2].badge") === 'PR (-34%)', 'milestone 2 has PR badge');
+
 console.log('LungCare smoke test: PASS');
-console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate, recist 1.1, ctcae v5.0, teach-back 10-point, mdt workflow, pro diary, soap summary, safety labs, biomarkers, ddi checker, rehab nutrition, caregiver sync');
+console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate, recist 1.1, ctcae v5.0, teach-back 10-point, mdt workflow, pro diary, soap summary, safety labs, biomarkers, ddi checker, rehab nutrition, caregiver sync, treatment journey');
 
 function stateValue(key) {
   return run(`Boolean(state.safetyRequests[0] && state.safetyRequests[0].${key})`);
