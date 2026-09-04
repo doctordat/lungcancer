@@ -351,6 +351,22 @@ const defaultState = () => ({
       'Khi nào có dấu hiệu cần đi cấp cứu ngay?'
     ]
   },
+  followupVaccine: {
+    vaccines: [
+      { id: 'flu', name: 'Vắc xin Cúm bất hoạt mùa (Inactivated Influenza)', lastGiven: '15/08/2026', nextDue: 'Tháng 08/2027 (Hàng năm)', status: 'up_to_date', note: 'Đã tiêm chủng đầy đủ, giúp giảm nguy cơ bội nhiễm viêm phổi.' },
+      { id: 'pcv13', name: 'Vắc xin Phế cầu cộng hợp (PCV13 - Prevenar 13)', lastGiven: '10/07/2026', nextDue: 'Đã hoàn thành liều nền', status: 'up_to_date', note: 'Phòng ngừa 13 chủng phế cầu khuẩn gây viêm phổi xâm lấn.' },
+      { id: 'ppsv23', name: 'Vắc xin Phế cầu đa giá (PPSV23 - Pneumovax 23)', lastGiven: 'Chưa tiêm', nextDue: 'Tháng 07/2027 (Sau PCV13 1 năm)', status: 'scheduled', note: 'Hẹn tiêm nhắc sau 1 năm để mở rộng độ bao phủ bảo vệ.' }
+    ],
+    insuranceCost: {
+      monthlyMedCostTotal: 28000000,
+      bhytCoveragePct: 80,
+      bhytPaidAmount: 22400000,
+      patientCoPayAmount: 5600000,
+      supportProgramNote: 'Bệnh nhân được hỗ trợ thuốc từ Chương trình Đồng chi trả Hỗ trợ người bệnh (PAP) giúp giảm chi phí thực tế.'
+    },
+    reviewed: false,
+    reviewMeta: null
+  },
   alerts: []
 });
 
@@ -422,6 +438,14 @@ function normalize(raw) {
     patientAiChat: {
       messages: Array.isArray(raw.patientAiChat?.messages) ? raw.patientAiChat.messages : d.patientAiChat.messages,
       quickPrompts: Array.isArray(raw.patientAiChat?.quickPrompts) ? raw.patientAiChat.quickPrompts : d.patientAiChat.quickPrompts
+    },
+    followupVaccine: {
+      ...d.followupVaccine,
+      ...(raw.followupVaccine || {}),
+      vaccines: Array.isArray(raw.followupVaccine?.vaccines) ? raw.followupVaccine.vaccines : d.followupVaccine.vaccines,
+      insuranceCost: { ...d.followupVaccine.insuranceCost, ...(raw.followupVaccine?.insuranceCost || {}) },
+      reviewMeta: (raw.followupVaccine?.reviewMeta && raw.followupVaccine.reviewMeta.planId===careLoop.plan.planId && raw.followupVaccine.reviewMeta.revision===careLoop.plan.revision) ? raw.followupVaccine.reviewMeta : null,
+      reviewed: Boolean(raw.followupVaccine?.reviewed && raw.followupVaccine?.reviewMeta?.planId===careLoop.plan.planId && raw.followupVaccine?.reviewMeta?.revision===careLoop.plan.revision)
     },
     medicationSafety: { ...d.medicationSafety, ...(raw.medicationSafety || {}), reviewed:{...d.medicationSafety.reviewed,...(raw.medicationSafety?.reviewed||{})}, reviewMeta:{...d.medicationSafety.reviewMeta,...(raw.medicationSafety?.reviewMeta||{})}, checks:Array.isArray(raw.medicationSafety?.checks)?raw.medicationSafety.checks:d.medicationSafety.checks },
     careLoop,
@@ -1029,6 +1053,75 @@ function patientAiAssistantWidget(){
   </section>`;
 }
 
+function followupVaccinePanel(){
+  const fv = state.followupVaccine;
+  const ins = fv.insuranceCost;
+  return `<section class="card vaccine-cost-card"><small>PREVENTIVE CARE & COST TRANSPARENCY · LỊCH TIÊM CHỦNG & DỰ TOÁN BHYT</small>
+    <div class="vaccine-cost-header">
+      <div>
+        <h3>Phòng ngừa Nhiễm trùng Hô hấp & Dự toán Chi phí Thuốc BHYT</h3>
+        <p>Khuyến cáo NCCN & CDC cho bệnh nhân Ung thư phổi · Tối ưu hóa chi phí đồng chi trả</p>
+      </div>
+      <div>
+        ${fv.reviewed ? pill(`ĐD/BS đã review tiêm chủng · ${fv.reviewMeta?.reviewedAt || ''}`, 'green') : button('Xác nhận Lịch Tiêm & Chi Phí', 'reviewFollowupVaccine()', 'primary')}
+      </div>
+    </div>
+
+    <div class="vaccine-cost-grid">
+      <div class="vaccine-box">
+        <b>1. Lịch tiêm chủng Vắc xin Bất hoạt (Preventive Vaccines):</b>
+        <div class="vaccine-list">
+          ${fv.vaccines.map(v => `
+            <div class="vaccine-item ${v.status}">
+              <div class="vaccine-item-top">
+                <b>${v.name}</b>
+                <span class="pill ${v.status === 'up_to_date' ? 'green' : 'yellow'}">${v.status === 'up_to_date' ? 'Đã tiêm' : 'Lên lịch'}</span>
+              </div>
+              <small>Lần tiêm gần nhất: ${v.lastGiven} | Hẹn tiếp theo: <strong>${v.nextDue}</strong></small>
+              <p>${v.note}</p>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <div class="cost-box">
+        <b>2. Dự toán Chi phí Điều trị & Quyền lợi BHYT (Tháng):</b>
+        <div class="cost-breakdown">
+          <div class="cost-row">
+            <span>Tổng chi phí thuốc Osimertinib 80mg (30 ngày):</span>
+            <b>${ins.monthlyMedCostTotal.toLocaleString('vi-VN')} đ</b>
+          </div>
+          <div class="cost-row highlight-green">
+            <span>BHYT chi trả (${ins.bhytCoveragePct}%):</span>
+            <b>- ${ins.bhytPaidAmount.toLocaleString('vi-VN')} đ</b>
+          </div>
+          <div class="cost-row highlight-blue">
+            <span>Người bệnh đồng chi trả (20%):</span>
+            <b>${ins.patientCoPayAmount.toLocaleString('vi-VN')} đ</b>
+          </div>
+          <div class="cost-note">
+            <small>💡 <b>Chương trình hỗ trợ:</b> ${ins.supportProgramNote}</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>`;
+}
+
+function reviewFollowupVaccine(){
+  if(!['doctor','nurse'].includes(state.role)) return;
+  state.followupVaccine.reviewed = true;
+  state.followupVaccine.reviewMeta = {
+    planId: state.careLoop.plan.planId,
+    revision: state.careLoop.plan.revision,
+    reviewedAt: new Date().toLocaleString('vi-VN'),
+    reviewedBy: state.role === 'doctor' ? 'BS. Mỹ Linh' : 'ĐD. Thu Hà'
+  };
+  event('FOLLOWUP_VACCINE_REVIEWED', { detail: 'Đã review lịch tiêm vắc xin Cúm/Phế cầu và dự toán BHYT' });
+  save();
+  render();
+}
+
 function patient(){
   const active = state.encounterState === 'home-care-active';
   return shell(`${patientSummary()}<div class="grid two">
@@ -1039,8 +1132,8 @@ function patient(){
   ${patientAiAssistantWidget()}
   ${patientDailyCheckin()}
   ${patientRehabSection()}
-  ${caregiverSyncPanel()}
-  <div class="grid two">
+  ${followupVaccinePanel()}
+  ${caregiverSyncPanel()}` + `<div class="grid two">
     <section class="card"><small>KHAI NHANH TÁI KHÁM</small><label>Mục tiêu lần này<input value="${state.previsit.goal}" oninput="update(['previsit','goal'],this.value)" placeholder="Đánh giá đáp ứng, độc tính, cấp thuốc..." /></label><label>Thay đổi từ lần trước<textarea oninput="update(['previsit','changes'],this.value)" placeholder="VD: tiêu chảy 3-4 lần/ngày, ban da nhẹ...">${state.previsit.changes}</textarea></label>${button('Gửi thông tin cho khoa','advance("previsit-submitted","PREVISIT_SUBMITTED")','primary')}</section>
     <section class="card dangerZone"><small>BÁO TRIỆU CHỨNG</small><h3>Triage độc tính tại nhà</h3><p>Chọn nhanh triệu chứng. Nếu khó thở khi nghỉ/đau ngực/lơ mơ → popup đỏ gửi cả BS và ĐD.</p><div class="symptoms">${['Tiêu chảy','Ban da','Mệt','Sốt','Đau ngực','Khó thở khi nghỉ'].map(s=>button(s, s==='Khó thở khi nghỉ'?'redDyspnea()':'yellowSymptom("'+s+'")', s==='Khó thở khi nghỉ'?'danger':'outline')).join('')}</div></section>
   </div>

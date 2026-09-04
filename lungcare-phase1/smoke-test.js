@@ -226,8 +226,15 @@ run("handlePatientAiQuery('Tôi bị khó thở khi nghỉ ngơi')");
 check(run("state.patientAiChat.messages.at(-1).alert") === 'red', 'AI flags red alert for dyspnea');
 check(run("hasUnresolvedRed()") === true, 'AI auto-triggers red triage');
 
+// Follow-up Vaccine & Insurance Cost assertions
+check(run("state.followupVaccine.vaccines.length") === 3, 'followupVaccine has 3 vaccines');
+check(run("state.followupVaccine.insuranceCost.bhytCoveragePct") === 80, 'BHYT coverage is 80%');
+check(run("state.followupVaccine.insuranceCost.patientCoPayAmount") === 5600000, 'Co-pay amount is 5.6m');
+run("reviewFollowupVaccine()");
+check(run("state.followupVaccine.reviewed") === true, 'vaccine & cost marked reviewed');
+
 console.log('LungCare smoke test: PASS');
-console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate, recist 1.1, ctcae v5.0, teach-back 10-point, mdt workflow, pro diary, soap summary, safety labs, biomarkers, ddi checker, rehab nutrition, caregiver sync, treatment journey, clinical calculators, nccn pathways, voice scribe, health passport, workload allocation, accessibility pwa, mskcc prognosis, ai patient assistant');
+console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate, recist 1.1, ctcae v5.0, teach-back 10-point, mdt workflow, pro diary, soap summary, safety labs, biomarkers, ddi checker, rehab nutrition, caregiver sync, treatment journey, clinical calculators, nccn pathways, voice scribe, health passport, workload allocation, accessibility pwa, mskcc prognosis, ai patient assistant, vaccine cost tracker');
 
 function stateValue(key) {
   return run(`Boolean(state.safetyRequests[0] && state.safetyRequests[0].${key})`);
