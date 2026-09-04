@@ -367,6 +367,23 @@ const defaultState = () => ({
     reviewed: false,
     reviewMeta: null
   },
+  geneticPedigree: {
+    familyHistoryCategory: 'Mắc phải (Somatic) - Nguy cơ di truyền gia đình thấp',
+    somaticVsGermline: {
+      somaticDriver: 'EGFR Exon 19 Deletion (p.E746_A750del) · Mắc phải trong tế bào biểu mô phế quản (100% không di truyền cho con cái).',
+      germlineRisk: 'Đột biến dòng mầm di truyền Âm tính (Không mang đột biến di truyền TP53 Li-Fraumeni, BRCA, EGFR T790M germline).'
+    },
+    pedigreeMembers: [
+      { generation: 'Thế hệ I (Bố/Mẹ)', relation: 'Bố đẻ', ageAtDx: '68 tuổi', status: 'Ung thư phổi (Có hút thuốc lá 30 năm)', symbol: 'square-filled' },
+      { generation: 'Thế hệ I (Bố/Mẹ)', relation: 'Mẹ đẻ', ageAtDx: '65 tuổi', status: 'Ung thư vú (Đã phẫu thuật & ổn định)', symbol: 'circle-filled' },
+      { generation: 'Thế hệ II (Bệnh nhân & Anh em)', relation: 'Bệnh nhân (Nguyễn Văn Minh)', ageAtDx: '62 tuổi', status: 'NSCLC IVA EGFR ex19del (Không hút thuốc)', symbol: 'square-patient' },
+      { generation: 'Thế hệ II (Bệnh nhân & Anh em)', relation: 'Em gái', ageAtDx: '58 tuổi', status: 'Khỏe mạnh bình thường', symbol: 'circle-normal' },
+      { generation: 'Thế hệ III (Con cái)', relation: 'Con trai (Nguyễn Văn Tuấn)', ageAtDx: '35 tuổi', status: 'Khỏe mạnh, không hút thuốc · Tầm soát định kỳ', symbol: 'square-normal' }
+    ],
+    screeningRecommendation: 'Con trai (Anh Tuấn) không cần xét nghiệm gen dòng mầm khẩn cấp; khuyến cáo duy trì lối sống lành mạnh, không hút thuốc và bắt đầu tầm soát chụp CT lồng ngực liều thấp (LDCT) từ tuổi 45-50.',
+    reviewed: false,
+    reviewMeta: null
+  },
   alerts: []
 });
 
@@ -446,6 +463,14 @@ function normalize(raw) {
       insuranceCost: { ...d.followupVaccine.insuranceCost, ...(raw.followupVaccine?.insuranceCost || {}) },
       reviewMeta: (raw.followupVaccine?.reviewMeta && raw.followupVaccine.reviewMeta.planId===careLoop.plan.planId && raw.followupVaccine.reviewMeta.revision===careLoop.plan.revision) ? raw.followupVaccine.reviewMeta : null,
       reviewed: Boolean(raw.followupVaccine?.reviewed && raw.followupVaccine?.reviewMeta?.planId===careLoop.plan.planId && raw.followupVaccine?.reviewMeta?.revision===careLoop.plan.revision)
+    },
+    geneticPedigree: {
+      ...d.geneticPedigree,
+      ...(raw.geneticPedigree || {}),
+      pedigreeMembers: Array.isArray(raw.geneticPedigree?.pedigreeMembers) ? raw.geneticPedigree.pedigreeMembers : d.geneticPedigree.pedigreeMembers,
+      somaticVsGermline: { ...d.geneticPedigree.somaticVsGermline, ...(raw.geneticPedigree?.somaticVsGermline || {}) },
+      reviewMeta: (raw.geneticPedigree?.reviewMeta && raw.geneticPedigree.reviewMeta.planId===careLoop.plan.planId && raw.geneticPedigree.reviewMeta.revision===careLoop.plan.revision) ? raw.geneticPedigree.reviewMeta : null,
+      reviewed: Boolean(raw.geneticPedigree?.reviewed && raw.geneticPedigree?.reviewMeta?.planId===careLoop.plan.planId && raw.geneticPedigree?.reviewMeta?.revision===careLoop.plan.revision)
     },
     medicationSafety: { ...d.medicationSafety, ...(raw.medicationSafety || {}), reviewed:{...d.medicationSafety.reviewed,...(raw.medicationSafety?.reviewed||{})}, reviewMeta:{...d.medicationSafety.reviewMeta,...(raw.medicationSafety?.reviewMeta||{})}, checks:Array.isArray(raw.medicationSafety?.checks)?raw.medicationSafety.checks:d.medicationSafety.checks },
     careLoop,
@@ -2101,7 +2126,104 @@ function reviewPrognosis(){
   render();
 }
 
-function doctor(){ return shell(`${patientSummary()}${medicationSafetyBrief()}${healthPassportCard()}${prognosisRadarPanel()}${workloadAllocationPanel()}${voiceScribePanel()}${nccnPathwayViewer()}${clinicalCalculatorsPanel()}${ddiCheckerPanel()}${safetyLabsPanel()}${biomarkerEvolutionPanel()}${proTrendDashboard()}${recistAssessmentBrief()}${ctcaeToxicityGuide()}${rehabAssessmentPanel()}${mdtConsultationPanel()}${safetyQueue()}${doctorCareSnapshot()}${escalationReview()}${triageHandoff()}${doctorPatientVoice()}<div class="decision-layout"><section class="card"><small>DECISION BRIEF · TUẦN 6</small><h2>Tiếp tục điều trị hay cần đánh giá thêm?</h2><p class="lead">Bản tóm tắt cho một quyết định — không phải bệnh án. Mọi gợi ý cần bác sĩ xác nhận.</p>${patientVoice()}<div class="decision-lens"><small>DECISION LENS · FRAMING MÔ PHỎNG</small><h3>Câu hỏi lần khám</h3><b>Có thể tiếp tục liều hiện tại trong khi hoàn thiện dữ liệu an toàn và đáp ứng không?</b><div class="lens-grid"><div><small>Tín hiệu ủng hộ</small><p>Tuân thủ tốt · molecular phù hợp · độc tính demo G1–2</p></div><div><small>Next-best-information</small><p>CT tuần 8 · ECG/QTc · điện giải · xác minh toxicity trực tiếp</p></div></div><h3>Điểm bất định cần ghi nhận</h3>${uncertainties()}</div><div class="brief-columns"><div><h3>Dữ kiện mô phỏng</h3>${briefFacts(state.decisionBrief.facts,'fact')}</div><div><h3>Người bệnh báo cáo</h3>${briefFacts(state.decisionBrief.patientReported,'reported')}</div></div><h3>Evidence map · bấm từng mục để xác nhận đã review</h3>${evidenceMap()}${readinessPanel()}<h3>Safety gates</h3><div class="gates">${state.decisionBrief.safetyGates.map(g=>`<div class="gate ${g.status}"><span>${g.status==='ready'||g.status==='clear'?'✓':'!'}</span><div><b>${g.label}</b><small>${g.detail}</small></div></div>`).join('')}</div></section><section class="card"><small>CDS OPTIONS · KHÔNG PHẢI Y LỆNH</small><h2>Các hướng xử trí để bác sĩ cân nhắc</h2>${decisionOptions()}<label>Lý do quyết định / lý do từ chối gợi ý<textarea oninput="update(['doctor','decisionReason'],this.value)" placeholder="Bắt buộc ghi lý do trước khi xác nhận">${state.doctor.decisionReason}</textarea></label><div class="actions">${can('ready-for-doctor') ? button('Nhận ca','advance("doctor-examining","DOCTOR_ACCEPTED_CASE")','outline') : button('Chờ ĐD hoàn tất tiếp nhận','void(0)','disabled')}${hasUnresolvedRed() ? button('Đang có cảnh báo đỏ · phải xử trí trước','void(0)','disabled') : !decisionReady() ? button('Review evidence + xác nhận data gap trước','void(0)','disabled') : can('doctor-examining') && state.doctor.decisionReason.trim() ? button('Xác nhận quyết định · tạo handoff','confirmDecision()','primary') : button('Cần nhận ca + ghi lý do','void(0)','disabled')}</div></section><aside class="sticky"><section class="card evidence"><small>NGUỒN & PHIÊN BẢN</small><h3>${state.decisionBrief.evidence.title}</h3><p>${state.decisionBrief.evidence.version}</p><div class="warning">${state.decisionBrief.evidence.note}</div><hr><b>Dữ liệu còn thiếu</b><ul>${state.decisionBrief.safetyGates.filter(g=>g.status==='missing').map(g=>`<li>${g.label}</li>`).join('')}</ul></section></aside></div>${activityLog()}`); }
+function geneticPedigreePanel(){
+  const gp = state.geneticPedigree;
+  const svg = gp.somaticVsGermline;
+  return `<section class="card pedigree-card"><small>HEREDITARY ONCOLOGY & PEDIGREE TREE · PHẢ HỆ DI TRUYỀN & NGUY CƠ GIA ĐÌNH</small>
+    <div class="pedigree-header">
+      <div>
+        <h3>Phân tích Nguy cơ Ung thư Di truyền & Cây Phả hệ 3 Đời</h3>
+        <p>Phân loại: <strong class="badge-somatic">${gp.familyHistoryCategory}</strong></p>
+        <small>Đối chiếu bản chất đột biến: <strong>Somatic (Tế bào u mắc phải)</strong> vs <strong>Germline (Dòng mầm di truyền)</strong></small>
+      </div>
+      <div>
+        ${gp.reviewed ? pill(`BS đã review di truyền · ${gp.reviewMeta?.reviewedAt || ''}`, 'green') : button('Xác nhận Review Phả hệ Di truyền', 'reviewGeneticPedigree()', 'primary')}
+      </div>
+    </div>
+
+    <div class="pedigree-grid">
+      <!-- Cột 1: Sơ đồ Cây Phả hệ SVG 3 Đời -->
+      <div class="pedigree-tree-box">
+        <b>Sơ đồ Cây Phả hệ 3 Thế hệ (Pedigree Tree):</b>
+        <div class="pedigree-svg-wrap">
+          <svg viewBox="0 0 320 180" class="pedigree-svg">
+            <!-- Thế hệ I -->
+            <!-- Bố đẻ (Vuông tô đen - K phổi) -->
+            <rect x="60" y="20" width="30" height="30" fill="#0f172a" stroke="#0f172a" stroke-width="2"/>
+            <text x="75" y="62" font-size="9" text-anchor="middle" font-weight="bold" fill="#334155">Bố (68T)</text>
+            <text x="75" y="72" font-size="8" text-anchor="middle" fill="#dc2626">K Phổi</text>
+
+            <!-- Hôn nhân line I -->
+            <line x1="90" y1="35" x2="170" y2="35" stroke="#64748b" stroke-width="2"/>
+            <line x1="130" y1="35" x2="130" y2="90" stroke="#64748b" stroke-width="2"/>
+
+            <!-- Mẹ đẻ (Tròn tô đen - K vú) -->
+            <circle cx="185" cy="35" r="15" fill="#e11d48" stroke="#e11d48" stroke-width="2"/>
+            <text x="185" y="62" font-size="9" text-anchor="middle" font-weight="bold" fill="#334155">Mẹ (65T)</text>
+            <text x="185" y="72" font-size="8" text-anchor="middle" fill="#e11d48">K Vú</text>
+
+            <!-- Thế hệ II Line ngang -->
+            <line x1="90" y1="90" x2="190" y2="90" stroke="#64748b" stroke-width="2"/>
+
+            <!-- Bệnh nhân Minh (Vuông màu tím viền đậm có mũi tên Proband) -->
+            <line x1="90" y1="90" x2="90" y2="105" stroke="#64748b" stroke-width="2"/>
+            <rect x="75" y="105" width="30" height="30" fill="#4f46e5" stroke="#312e81" stroke-width="2.5"/>
+            <text x="90" y="147" font-size="9.5" text-anchor="middle" font-weight="bold" fill="#4f46e5">BN Minh (62T)</text>
+            <text x="90" y="157" font-size="8" text-anchor="middle" fill="#4f46e5">NSCLC IVA (Proband)</text>
+
+            <!-- Hôn nhân line II -->
+            <line x1="105" y1="120" x2="145" y2="120" stroke="#64748b" stroke-width="2"/>
+            <line x1="125" y1="120" x2="125" y2="145" stroke="#64748b" stroke-width="2"/>
+            <circle cx="155" cy="120" r="10" fill="white" stroke="#64748b" stroke-width="1.5"/>
+
+            <!-- Em gái (Tròn trắng - Khỏe mạnh) -->
+            <line x1="190" y1="90" x2="190" y2="105" stroke="#64748b" stroke-width="2"/>
+            <circle cx="190" cy="120" r="15" fill="white" stroke="#64748b" stroke-width="2"/>
+            <text x="190" y="147" font-size="9" text-anchor="middle" fill="#334155">Em gái (58T)</text>
+            <text x="190" y="157" font-size="8" text-anchor="middle" fill="#16a34a">Khỏe mạnh</text>
+
+            <!-- Thế hệ III - Con trai Tuấn (Vuông trắng) -->
+            <rect x="110" y="145" width="30" height="30" fill="white" stroke="#16a34a" stroke-width="2"/>
+            <text x="125" y="185" font-size="9" text-anchor="middle" font-weight="bold" fill="#047857">Con trai Tuấn (35T)</text>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Cột 2: Bảng phân tích Y khoa Somatic vs Germline -->
+      <div class="pedigree-analysis-box">
+        <b>Bản chất Di truyền & Khuyến cáo Tầm soát:</b>
+        <div class="pedigree-somatic-box">
+          <small>🔬 Đột biến Tế bào u Mắc phải (Somatic Mutation):</small>
+          <p>${svg.somaticDriver}</p>
+        </div>
+        <div class="pedigree-germline-box">
+          <small>🧬 Đột biến Dòng mầm Di truyền (Germline Risk):</small>
+          <p>${svg.germlineRisk}</p>
+        </div>
+        <div class="pedigree-counseling-box">
+          <small>💡 Tư vấn Bác sĩ cho Người nhà (Con trai - Anh Tuấn):</small>
+          <p>${gp.screeningRecommendation}</p>
+        </div>
+      </div>
+    </div>
+  </section>`;
+}
+
+function reviewGeneticPedigree(){
+  if(state.role !== 'doctor') return;
+  state.geneticPedigree.reviewed = true;
+  state.geneticPedigree.reviewMeta = {
+    planId: state.careLoop.plan.planId,
+    revision: state.careLoop.plan.revision,
+    reviewedAt: new Date().toLocaleString('vi-VN'),
+    reviewedBy: 'BS. Mỹ Linh'
+  };
+  event('GENETIC_PEDIGREE_REVIEWED', { detail: 'Đã review phả hệ di truyền 3 đời: Đột biến Somatic, nguy cơ con cái thấp' });
+  save();
+  render();
+}
+
+function doctor(){ return shell(`${patientSummary()}${medicationSafetyBrief()}${geneticPedigreePanel()}${healthPassportCard()}${prognosisRadarPanel()}${workloadAllocationPanel()}${voiceScribePanel()}${nccnPathwayViewer()}${clinicalCalculatorsPanel()}${ddiCheckerPanel()}${safetyLabsPanel()}${biomarkerEvolutionPanel()}${proTrendDashboard()}${recistAssessmentBrief()}${ctcaeToxicityGuide()}${rehabAssessmentPanel()}${mdtConsultationPanel()}${safetyQueue()}${doctorCareSnapshot()}${escalationReview()}${triageHandoff()}${doctorPatientVoice()}<div class="decision-layout"><section class="card"><small>DECISION BRIEF · TUẦN 6</small><h2>Tiếp tục điều trị hay cần đánh giá thêm?</h2><p class="lead">Bản tóm tắt cho một quyết định — không phải bệnh án. Mọi gợi ý cần bác sĩ xác nhận.</p>${patientVoice()}<div class="decision-lens"><small>DECISION LENS · FRAMING MÔ PHỎNG</small><h3>Câu hỏi lần khám</h3><b>Có thể tiếp tục liều hiện tại trong khi hoàn thiện dữ liệu an toàn và đáp ứng không?</b><div class="lens-grid"><div><small>Tín hiệu ủng hộ</small><p>Tuân thủ tốt · molecular phù hợp · độc tính demo G1–2</p></div><div><small>Next-best-information</small><p>CT tuần 8 · ECG/QTc · điện giải · xác minh toxicity trực tiếp</p></div></div><h3>Điểm bất định cần ghi nhận</h3>${uncertainties()}</div><div class="brief-columns"><div><h3>Dữ kiện mô phỏng</h3>${briefFacts(state.decisionBrief.facts,'fact')}</div><div><h3>Người bệnh báo cáo</h3>${briefFacts(state.decisionBrief.patientReported,'reported')}</div></div><h3>Evidence map · bấm từng mục để xác nhận đã review</h3>${evidenceMap()}${readinessPanel()}<h3>Safety gates</h3><div class="gates">${state.decisionBrief.safetyGates.map(g=>`<div class="gate ${g.status}"><span>${g.status==='ready'||g.status==='clear'?'✓':'!'}</span><div><b>${g.label}</b><small>${g.detail}</small></div></div>`).join('')}</div></section><section class="card"><small>CDS OPTIONS · KHÔNG PHẢI Y LỆNH</small><h2>Các hướng xử trí để bác sĩ cân nhắc</h2>${decisionOptions()}<label>Lý do quyết định / lý do từ chối gợi ý<textarea oninput="update(['doctor','decisionReason'],this.value)" placeholder="Bắt buộc ghi lý do trước khi xác nhận">${state.doctor.decisionReason}</textarea></label><div class="actions">${can('ready-for-doctor') ? button('Nhận ca','advance("doctor-examining","DOCTOR_ACCEPTED_CASE")','outline') : button('Chờ ĐD hoàn tất tiếp nhận','void(0)','disabled')}${hasUnresolvedRed() ? button('Đang có cảnh báo đỏ · phải xử trí trước','void(0)','disabled') : !decisionReady() ? button('Review evidence + xác nhận data gap trước','void(0)','disabled') : can('doctor-examining') && state.doctor.decisionReason.trim() ? button('Xác nhận quyết định · tạo handoff','confirmDecision()','primary') : button('Cần nhận ca + ghi lý do','void(0)','disabled')}</div></section><aside class="sticky"><section class="card evidence"><small>NGUỒN & PHIÊN BẢN</small><h3>${state.decisionBrief.evidence.title}</h3><p>${state.decisionBrief.evidence.version}</p><div class="warning">${state.decisionBrief.evidence.note}</div><hr><b>Dữ liệu còn thiếu</b><ul>${state.decisionBrief.safetyGates.filter(g=>g.status==='missing').map(g=>`<li>${g.label}</li>`).join('')}</ul></section></aside></div>${activityLog()}`); }
 function patientVoice(){ const p=state.previsit; const submitted=state.encounterState!=='previsit-draft'||p.submittedAt; return `<div class="patient-voice ${submitted?'submitted':''}"><div><small>PATIENT VOICE · NGUỒN NGƯỜI BỆNH TỰ BÁO CÁO</small><h3>${submitted?'Thông tin trước khám đã gửi':'Chưa có khai nhanh từ người bệnh'}</h3>${submitted?`<p><b>Mục tiêu:</b> ${p.goal||'Chưa nhập'}</p><p><b>Thay đổi:</b> ${p.changes||'Chưa nhập'}</p><small>Gửi lúc ${p.submittedAt||'không rõ'} · Không tự động xem là dữ kiện đã xác minh</small>`:'<p>Điều dưỡng/bác sĩ chưa nhận được patient voice. Đây là empty state, không phải lỗi hồ sơ.</p>'}</div><div>${submitted&&!p.doctorRead?button('Đánh dấu đã đọc','markPatientVoiceRead()','outline'):submitted?pill('BS đã đọc · patient-reported','green'):pill('Chờ người bệnh gửi')}</div></div>`; }
 function markPatientVoiceRead(){ state.previsit.doctorRead=true; event('PATIENT_VOICE_READ',{detail:'Bác sĩ đã đọc thông tin patient-reported trước khám'}); save(); render(); }
 function doctorPatientVoice(){ const v=state.patientVoice; if(v.status!=='submitted') return `<section class="card voice-empty"><small>PATIENT VOICE</small><b>Chưa có khai voice từ người bệnh</b><p>Đây là khoảng trống thông tin, không phải dữ liệu âm tính.</p></section>`; return `<section class="card patient-voice"><div><small>PATIENT VOICE · CHƯA XÁC MINH</small><h3>Người bệnh đã gửi bản nháp</h3><p>${v.transcript}</p><small>${v.capturedAt} · nguồn: người bệnh</small></div><button onclick="markVoiceRead()" class="${v.readByDoctor?'outline':'primary'}">${v.readByDoctor?'Đã đọc':'Đánh dấu đã đọc'}</button></section>`; }
