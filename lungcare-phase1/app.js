@@ -318,6 +318,11 @@ const defaultState = () => ({
       { role: 'Phục hồi & Điều phối (Allied)', sharePct: 10, amountVnd: 80000, tasks: 'Hướng dẫn tập thở chúm môi, Dinh dưỡng chống suy kiệt BMI 21.3, Đồng bộ SMS Caregiver' }
     ]
   },
+  accessibility: {
+    largeTextMode: false,
+    highContrast: false,
+    simplifiedMode: false
+  },
   alerts: []
 });
 
@@ -374,6 +379,10 @@ function normalize(raw) {
       ...d.workloadAllocation,
       ...(raw.workloadAllocation || {}),
       breakdown: Array.isArray(raw.workloadAllocation?.breakdown) ? raw.workloadAllocation.breakdown : d.workloadAllocation.breakdown
+    },
+    accessibility: {
+      ...d.accessibility,
+      ...(raw.accessibility || {})
     },
     medicationSafety: { ...d.medicationSafety, ...(raw.medicationSafety || {}), reviewed:{...d.medicationSafety.reviewed,...(raw.medicationSafety?.reviewed||{})}, reviewMeta:{...d.medicationSafety.reviewMeta,...(raw.medicationSafety?.reviewMeta||{})}, checks:Array.isArray(raw.medicationSafety?.checks)?raw.medicationSafety.checks:d.medicationSafety.checks },
     careLoop,
@@ -500,9 +509,47 @@ function treatmentJourneyTimeline(){
   </section>`;
 }
 
+function toggleLargeTextMode(){
+  state.accessibility.largeTextMode = !state.accessibility.largeTextMode;
+  event('ACCESSIBILITY_MODE_TOGGLED', { detail: `Chế độ chữ to trợ năng: ${state.accessibility.largeTextMode ? 'BẬT' : 'TẮT'}` });
+  save();
+  render();
+}
+
+function topbar(roleMeta){
+  return `<header class="top">
+    <div class="top-title-area">
+      <div class="live-dot-wrap">
+        <span class="live-pulse"></span>
+        <small>${roleMeta[2].toUpperCase()} · HỆ THỐNG TRỰC TUYẾN</small>
+      </div>
+      <h1>${roleMeta[1] === 'Bệnh nhân' ? 'Chào chú Nguyễn Văn Minh' : roleMeta[1] === 'Điều dưỡng' ? 'Nurse Station · Bàn giao & Tiếp nhận' : 'Oncology Clinical Command Center'}</h1>
+    </div>
+
+    <div class="top-actions-bar">
+      <button class="pill-btn ${state.accessibility?.largeTextMode ? 'active' : ''}" onclick="toggleLargeTextMode()" title="Chế độ chữ to & trợ năng thị lực cho người cao tuổi">
+        👓 Chữ to: ${state.accessibility?.largeTextMode ? 'BẬT' : 'TẮT'}
+      </button>
+
+      <div class="top-scenario-nav">
+        <span class="scenario-label">MÔ PHỎNG:</span>
+        <button class="pill-btn ${state.scenario==='routine'?'active':''}" onclick="resetScenario('routine')">Routine (PR)</button>
+        <button class="pill-btn ${state.scenario==='yellow'?'active':''}" onclick="resetScenario('yellow')">Triage Yellow</button>
+        <button class="pill-btn ${state.scenario==='red'?'active':''}" onclick="resetScenario('red')">Red Alert</button>
+      </div>
+
+      <div class="top-util-btns">
+        ${state.role === 'doctor' ? button('📋 Copy SOAP EMR', 'copySoapSummary()', 'primary') : ''}
+        ${button('🖨 In bản A4', 'openPrintHandout()', 'outline')}
+      </div>
+    </div>
+  </header>`;
+}
+
 function shell(content){
   const roleMeta = { patient:['PT','Bệnh nhân','My Care'], nurse:['RN','Điều dưỡng','Nurse Station'], doctor:['DR','Bác sĩ','Clinical Command'] }[state.role];
-  return `<div class="app">
+  const isLarge = Boolean(state.accessibility?.largeTextMode);
+  return `<div class="app ${isLarge ? 'elderly-mode' : ''}">
     <aside class="side">
       <div class="brand"><b>LC</b><div><strong>LungCare</strong><span>CONNECTED ONCOLOGY</span></div></div>
       <div class="role-card"><span>${roleMeta[0]}</span><div><b>${roleMeta[1]}</b><small>${roleMeta[2]}</small></div></div>
