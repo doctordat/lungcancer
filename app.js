@@ -340,6 +340,17 @@ const defaultState = () => ({
     reviewed: false,
     reviewMeta: null
   },
+  patientAiChat: {
+    messages: [
+      { sender: 'ai', text: 'Chào chú Minh! Cháu là Trợ lý Y tế AI của Khoa Ung bướu. Hôm nay chú có thắc mắc gì về cách uống thuốc Osimertinib 80mg, cách xử trí tiêu chảy hay bài tập thở không ạ?', timestamp: 'Hôm nay' }
+    ],
+    quickPrompts: [
+      'Tôi lỡ quên uống thuốc sáng nay thì làm sao?',
+      'Đi ngoài phân lỏng 3 lần/ngày uống thuốc gì?',
+      'Mặt nổi vài nốt mụn đỏ có phải dị ứng không?',
+      'Khi nào có dấu hiệu cần đi cấp cứu ngay?'
+    ]
+  },
   alerts: []
 });
 
@@ -407,6 +418,10 @@ function normalize(raw) {
       radarScores: Array.isArray(raw.prognosisRadar?.radarScores) ? raw.prognosisRadar.radarScores : d.prognosisRadar.radarScores,
       reviewMeta: (raw.prognosisRadar?.reviewMeta && raw.prognosisRadar.reviewMeta.planId===careLoop.plan.planId && raw.prognosisRadar.reviewMeta.revision===careLoop.plan.revision) ? raw.prognosisRadar.reviewMeta : null,
       reviewed: Boolean(raw.prognosisRadar?.reviewed && raw.prognosisRadar?.reviewMeta?.planId===careLoop.plan.planId && raw.prognosisRadar?.reviewMeta?.revision===careLoop.plan.revision)
+    },
+    patientAiChat: {
+      messages: Array.isArray(raw.patientAiChat?.messages) ? raw.patientAiChat.messages : d.patientAiChat.messages,
+      quickPrompts: Array.isArray(raw.patientAiChat?.quickPrompts) ? raw.patientAiChat.quickPrompts : d.patientAiChat.quickPrompts
     },
     medicationSafety: { ...d.medicationSafety, ...(raw.medicationSafety || {}), reviewed:{...d.medicationSafety.reviewed,...(raw.medicationSafety?.reviewed||{})}, reviewMeta:{...d.medicationSafety.reviewMeta,...(raw.medicationSafety?.reviewMeta||{})}, checks:Array.isArray(raw.medicationSafety?.checks)?raw.medicationSafety.checks:d.medicationSafety.checks },
     careLoop,
@@ -938,6 +953,82 @@ function healthPassportCard(){
   </section>`;
 }
 
+function handlePatientAiQuery(userText){
+  if(!userText.trim()) return;
+  const chat = state.patientAiChat;
+  const now = new Date().toLocaleTimeString('vi-VN', {hour:'2-digit', minute:'2-digit'});
+  chat.messages.push({ sender: 'user', text: userText.trim(), timestamp: now });
+
+  const query = userText.toLowerCase();
+  let aiReply = '';
+  let isRed = false;
+
+  // Quy tắc suy luận lâm sàng y khoa thông minh
+  if(query.includes('khó thở') || query.includes('đau ngực') || query.includes('sốt cao') || query.includes('cấp cứu') || query.includes('ngất')){
+    isRed = true;
+    aiReply = '🚨 CẢNH BÁO KHẨN CẤP: Chú Minh ơi, dấu hiệu khó thở/đau ngực hoặc sốt cao là triệu chứng cần được xử trí y tế ngay lập tức! Cháu đã tự động kích hoạt Cảnh báo Đỏ gửi bác sĩ và gửi tin nhắn cho anh Tuấn (con trai). Chú hãy ngồi nghỉ ngơi tại chỗ, đo SpO2 và gọi ngay Hotline Cấp cứu 028 3844 xxxx nếu thấy mệt nhiều!';
+    redDyspnea();
+  } else if(query.includes('quên') && query.includes('thuốc')){
+    aiReply = '💊 Hướng dẫn xử trí quên liều Osimertinib 80mg:\n- Nếu chú nhớ ra trước 20:00 tối nay: Chú hãy uống bù ngay 1 viên 80mg.\n- Nếu đã sang sáng hôm sau: Chú bỏ qua liều đã quên và uống liều bình thường lúc 08:00 sáng.\n- TUYỆT ĐỐI KHÔNG UỐNG GẤP ĐÔI (2 viên cùng lúc). Cháu đã ghi nhận vào nhật ký theo dõi rồi ạ!';
+  } else if(query.includes('tiêu chảy') || query.includes('đi ngoài') || query.includes('phân lỏng')){
+    aiReply = '🚽 Hướng dẫn xử trí Tiêu chảy do Osimertinib (Grade 1-2):\n1. Pha 1 gói Oresol với 1 lít nước đun sôi để nguội, uống rải rác nhiều lần trong ngày để bù nước.\n2. Uống 1 viên Loperamide 2mg sau mỗi lần đi ngoài phân lỏng (không uống quá 8 viên/ngày).\n3. Ăn cháo loãng, thịt nạc, chuối chín. Tránh đồ cay nóng, sữa bò tươi và cà phê.\nNếu đi ngoài ≥ 4 lần/ngày kéo dài, chú báo ngay cho Điều dưỡng Thu Hà nhé!';
+  } else if(query.includes('mụn') || query.includes('ban da') || query.includes('ngứa') || query.includes('dị ứng')){
+    aiReply = '🧴 Hướng dẫn chăm sóc da & mụn phát ban:\n- Đây là phản ứng thường gặp của thuốc đích (Grade 1 nhẹ), không phải dị ứng nguy hiểm.\n- Chú thoa kem dưỡng ẩm dịu nhẹ (loại không cồn, không hương liệu) 2 lần/ngày sau khi tắm.\n- Có thể bôi một lớp mỏng kem Hydrocortisone 1% lên nốt ngứa ở mặt hoặc lưng.\n- Tránh ánh nắng gắt trực tiếp, đội mũ rộng vành khi ra ngoài.';
+  } else if(query.includes('ăn') || query.includes('dinh dưỡng') || query.includes('uống gì')){
+    aiReply = '🥗 Lời khuyên dinh dưỡng:\nChú nên ăn nhiều thực phẩm giàu đạm (thịt gà, cá hồi, trứng, đậu phụ) để duy trì cân nặng 58kg, chia nhỏ 5-6 bữa trong ngày. Uống đủ 2 lít nước ấm. Tránh ăn bưởi chùm (Grapefruit) vì có thể làm tăng độc tính của thuốc!';
+  } else {
+    aiReply = 'Dạ cháu đã ghi nhận câu hỏi của chú Minh. Về phác đồ Osimertinib 80mg hiện tại chú đang đáp ứng rất tốt (khối u giảm 34%). Nếu có bất kỳ triệu chứng lạ nào chú cứ nhắn cho cháu hoặc bấm nút Báo triệu chứng để Điều dưỡng Thu Hà hỗ trợ chú nhé!';
+  }
+
+  chat.messages.push({ sender: 'ai', text: aiReply, timestamp: now, alert: isRed ? 'red' : 'normal' });
+  event('PATIENT_AI_CHAT_INTERACTION', { detail: `Bệnh nhân hỏi: "${userText.slice(0, 40)}..." -> AI trả lời an toàn` });
+  save();
+  render();
+}
+
+function patientAiAssistantWidget(){
+  const chat = state.patientAiChat;
+  return `<section class="card ai-chat-card"><small>24/7 AI ONCOLOGY ASSISTANT · TRỢ LÝ Y TẾ THÔNG MINH ĐỒNG HÀNH</small>
+    <div class="ai-chat-header">
+      <div class="ai-bot-avatar">
+        <span>🤖</span>
+        <div>
+          <b>Bác sĩ AI Khoa Ung Bướu</b>
+          <small>🟢 Trực tuyến 24/7 · Sẵn sàng giải đáp</small>
+        </div>
+      </div>
+      <div>
+        ${pill('CDS Assistant · An toàn Y tế', 'purple')}
+      </div>
+    </div>
+
+    <div class="ai-chat-body">
+      ${chat.messages.map(m => `
+        <div class="chat-msg ${m.sender === 'user' ? 'user-msg' : 'ai-msg'} ${m.alert === 'red' ? 'red-alert-msg' : ''}">
+          <div class="msg-bubble">
+            <p>${m.text.replace(/\n/g, '<br>')}</p>
+            <small>${m.timestamp}</small>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+
+    <div class="ai-quick-prompts">
+      <small>Gợi ý câu hỏi nhanh (Bấm 1 chạm):</small>
+      <div class="prompt-chips">
+        ${chat.quickPrompts.map(qp => `
+          <button class="prompt-chip-btn" onclick="handlePatientAiQuery('${qp}')">${qp}</button>
+        `).join('')}
+      </div>
+    </div>
+
+    <div class="ai-chat-input-box">
+      <input type="text" id="aiChatInput" placeholder="Nhập câu hỏi của chú Minh tại đây..." onkeydown="if(event.key==='Enter'){handlePatientAiQuery(this.value); this.value='';}"/>
+      <button class="primary" onclick="const el=document.getElementById('aiChatInput'); handlePatientAiQuery(el.value); el.value='';">Gửi 💬</button>
+    </div>
+  </section>`;
+}
+
 function patient(){
   const active = state.encounterState === 'home-care-active';
   return shell(`${patientSummary()}<div class="grid two">
@@ -945,6 +1036,7 @@ function patient(){
     <section class="card"><small>THUỐC HÔM NAY</small><h3>Osimertinib 80 mg</h3><p>Uống 1 viên mỗi ngày, không nghiền viên. Demo CDS: chú ý tiêu chảy, ban da, khó thở mới.</p><div class="actions">${button(state.home.medicationTakenToday?'Đã ghi nhận uống':'Đánh dấu đã uống','takeMed()','primary')}${button('Báo quên liều','missDose()','outline')}</div><meter min="0" max="42" value="${state.patient.adherence.taken}"></meter><small>${state.patient.adherence.taken}/${state.patient.adherence.total} liều · quên ${state.patient.adherence.missed}</small></section>
   </div>
   ${healthPassportCard()}
+  ${patientAiAssistantWidget()}
   ${patientDailyCheckin()}
   ${patientRehabSection()}
   ${caregiverSyncPanel()}
