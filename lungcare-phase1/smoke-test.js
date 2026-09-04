@@ -212,8 +212,14 @@ check(run("state.accessibility.largeTextMode") === false, 'largeTextMode initial
 run("toggleLargeTextMode()");
 check(run("state.accessibility.largeTextMode") === true, 'largeTextMode toggled to true');
 
+// MSKCC Prognosis & Wellness Radar assertions
+check(run("state.prognosisRadar.medianPfsMonths") === 21.4, 'medianPfs is 21.4 months');
+check(run("state.prognosisRadar.radarScores.length") === 5, 'radar has 5 axes');
+run("reviewPrognosis()");
+check(run("state.prognosisRadar.reviewed") === true, 'prognosis marked as reviewed');
+
 console.log('LungCare smoke test: PASS');
-console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate, recist 1.1, ctcae v5.0, teach-back 10-point, mdt workflow, pro diary, soap summary, safety labs, biomarkers, ddi checker, rehab nutrition, caregiver sync, treatment journey, clinical calculators, nccn pathways, voice scribe, health passport, workload allocation, accessibility pwa');
+console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate, recist 1.1, ctcae v5.0, teach-back 10-point, mdt workflow, pro diary, soap summary, safety labs, biomarkers, ddi checker, rehab nutrition, caregiver sync, treatment journey, clinical calculators, nccn pathways, voice scribe, health passport, workload allocation, accessibility pwa, mskcc prognosis');
 
 function stateValue(key) {
   return run(`Boolean(state.safetyRequests[0] && state.safetyRequests[0].${key})`);

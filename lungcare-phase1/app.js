@@ -323,6 +323,23 @@ const defaultState = () => ({
     highContrast: false,
     simplifiedMode: false
   },
+  prognosisRadar: {
+    modelName: 'MSKCC NSCLC Targeted Therapy Prognostic Model',
+    medianPfsMonths: 21.4,
+    os2YearPct: 78.0,
+    dcrPct: 94.0,
+    prognosisCategory: 'Favorable (Tiên lượng Rất Khả quan)',
+    interpretation: 'Bệnh nhân có đột biến EGFR ex19del nhạy thuốc, không di căn não ban đầu, thể lực ECOG 0 và đạt thanh thải ctDNA phân tử sâu (0.08% ở tuần 8). Dự báo thời gian kiểm soát bệnh kéo dài vượt trội so với trung bình.',
+    radarScores: [
+      { axis: 'Thể lực ECOG', score: 95, detail: 'ECOG 0 / KPS 100%' },
+      { axis: 'Đáp ứng U RECIST', score: 90, detail: 'PR -34.0% (Tuần 8)' },
+      { axis: 'An toàn Tim mạch', score: 92, detail: 'QTcF 414ms · K+ 4.1' },
+      { axis: 'Dung tích Hô hấp', score: 85, detail: 'SpO2 98% · Tập thở đều' },
+      { axis: 'Tuân thủ Thuốc', score: 98, detail: '41/42 liều (98%)' }
+    ],
+    reviewed: false,
+    reviewMeta: null
+  },
   alerts: []
 });
 
@@ -383,6 +400,13 @@ function normalize(raw) {
     accessibility: {
       ...d.accessibility,
       ...(raw.accessibility || {})
+    },
+    prognosisRadar: {
+      ...d.prognosisRadar,
+      ...(raw.prognosisRadar || {}),
+      radarScores: Array.isArray(raw.prognosisRadar?.radarScores) ? raw.prognosisRadar.radarScores : d.prognosisRadar.radarScores,
+      reviewMeta: (raw.prognosisRadar?.reviewMeta && raw.prognosisRadar.reviewMeta.planId===careLoop.plan.planId && raw.prognosisRadar.reviewMeta.revision===careLoop.plan.revision) ? raw.prognosisRadar.reviewMeta : null,
+      reviewed: Boolean(raw.prognosisRadar?.reviewed && raw.prognosisRadar?.reviewMeta?.planId===careLoop.plan.planId && raw.prognosisRadar?.reviewMeta?.revision===careLoop.plan.revision)
     },
     medicationSafety: { ...d.medicationSafety, ...(raw.medicationSafety || {}), reviewed:{...d.medicationSafety.reviewed,...(raw.medicationSafety?.reviewed||{})}, reviewMeta:{...d.medicationSafety.reviewMeta,...(raw.medicationSafety?.reviewMeta||{})}, checks:Array.isArray(raw.medicationSafety?.checks)?raw.medicationSafety.checks:d.medicationSafety.checks },
     careLoop,
@@ -1807,7 +1831,92 @@ function workloadAllocationPanel(){
   </section>`;
 }
 
-function doctor(){ return shell(`${patientSummary()}${medicationSafetyBrief()}${healthPassportCard()}${workloadAllocationPanel()}${voiceScribePanel()}${nccnPathwayViewer()}${clinicalCalculatorsPanel()}${ddiCheckerPanel()}${safetyLabsPanel()}${biomarkerEvolutionPanel()}${proTrendDashboard()}${recistAssessmentBrief()}${ctcaeToxicityGuide()}${rehabAssessmentPanel()}${mdtConsultationPanel()}${safetyQueue()}${doctorCareSnapshot()}${escalationReview()}${triageHandoff()}${doctorPatientVoice()}<div class="decision-layout"><section class="card"><small>DECISION BRIEF · TUẦN 6</small><h2>Tiếp tục điều trị hay cần đánh giá thêm?</h2><p class="lead">Bản tóm tắt cho một quyết định — không phải bệnh án. Mọi gợi ý cần bác sĩ xác nhận.</p>${patientVoice()}<div class="decision-lens"><small>DECISION LENS · FRAMING MÔ PHỎNG</small><h3>Câu hỏi lần khám</h3><b>Có thể tiếp tục liều hiện tại trong khi hoàn thiện dữ liệu an toàn và đáp ứng không?</b><div class="lens-grid"><div><small>Tín hiệu ủng hộ</small><p>Tuân thủ tốt · molecular phù hợp · độc tính demo G1–2</p></div><div><small>Next-best-information</small><p>CT tuần 8 · ECG/QTc · điện giải · xác minh toxicity trực tiếp</p></div></div><h3>Điểm bất định cần ghi nhận</h3>${uncertainties()}</div><div class="brief-columns"><div><h3>Dữ kiện mô phỏng</h3>${briefFacts(state.decisionBrief.facts,'fact')}</div><div><h3>Người bệnh báo cáo</h3>${briefFacts(state.decisionBrief.patientReported,'reported')}</div></div><h3>Evidence map · bấm từng mục để xác nhận đã review</h3>${evidenceMap()}${readinessPanel()}<h3>Safety gates</h3><div class="gates">${state.decisionBrief.safetyGates.map(g=>`<div class="gate ${g.status}"><span>${g.status==='ready'||g.status==='clear'?'✓':'!'}</span><div><b>${g.label}</b><small>${g.detail}</small></div></div>`).join('')}</div></section><section class="card"><small>CDS OPTIONS · KHÔNG PHẢI Y LỆNH</small><h2>Các hướng xử trí để bác sĩ cân nhắc</h2>${decisionOptions()}<label>Lý do quyết định / lý do từ chối gợi ý<textarea oninput="update(['doctor','decisionReason'],this.value)" placeholder="Bắt buộc ghi lý do trước khi xác nhận">${state.doctor.decisionReason}</textarea></label><div class="actions">${can('ready-for-doctor') ? button('Nhận ca','advance("doctor-examining","DOCTOR_ACCEPTED_CASE")','outline') : button('Chờ ĐD hoàn tất tiếp nhận','void(0)','disabled')}${hasUnresolvedRed() ? button('Đang có cảnh báo đỏ · phải xử trí trước','void(0)','disabled') : !decisionReady() ? button('Review evidence + xác nhận data gap trước','void(0)','disabled') : can('doctor-examining') && state.doctor.decisionReason.trim() ? button('Xác nhận quyết định · tạo handoff','confirmDecision()','primary') : button('Cần nhận ca + ghi lý do','void(0)','disabled')}</div></section><aside class="sticky"><section class="card evidence"><small>NGUỒN & PHIÊN BẢN</small><h3>${state.decisionBrief.evidence.title}</h3><p>${state.decisionBrief.evidence.version}</p><div class="warning">${state.decisionBrief.evidence.note}</div><hr><b>Dữ liệu còn thiếu</b><ul>${state.decisionBrief.safetyGates.filter(g=>g.status==='missing').map(g=>`<li>${g.label}</li>`).join('')}</ul></section></aside></div>${activityLog()}`); }
+function prognosisRadarPanel(){
+  const pr = state.prognosisRadar;
+  const sc = pr.radarScores;
+  return `<section class="card prognosis-card"><small>PROGNOSTIC NOMOGRAM & 5-AXIS WELLNESS RADAR · TIÊN LƯỢNG CÁ THỂ HÓA (CHUẨN MSKCC)</small>
+    <div class="prognosis-header">
+      <div>
+        <h3>${pr.modelName}</h3>
+        <p>Phân loại tiên lượng: <strong class="badge-favorable">${pr.prognosisCategory}</strong> · Dự báo DCR: ${pr.dcrPct}%</p>
+        <small>${pr.interpretation}</small>
+      </div>
+      <div>
+        ${pr.reviewed ? pill(`BS đã review tiên lượng · ${pr.reviewMeta?.reviewedAt || ''}`, 'green') : button('Xác nhận Review Tiên lượng MSKCC', 'reviewPrognosis()', 'primary')}
+      </div>
+    </div>
+
+    <div class="prognosis-grid">
+      <div class="prognosis-metrics-box">
+        <b>Ước tính Tiên lượng Sống còn Cá thể hóa:</b>
+        <div class="prognosis-tiles">
+          <div class="prog-tile">
+            <small>Thời gian kiểm soát bệnh (Median PFS)</small>
+            <b>~ ${pr.medianPfsMonths} tháng</b>
+            <span>FLAURA chuẩn: 18.9 tháng (+2.5 tháng)</span>
+          </div>
+          <div class="prog-tile">
+            <small>Xác suất sống còn 2 năm (2-Year OS)</small>
+            <b>${pr.os2YearPct}%</b>
+            <span>Nhóm đột biến Exon 19 del thuận lợi</span>
+          </div>
+          <div class="prog-tile">
+            <small>Tỉ lệ đáp ứng & khống chế (DCR)</small>
+            <b>${pr.dcrPct}%</b>
+            <span>Thanh thải ctDNA sâu (0.08%)</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="prognosis-radar-box">
+        <b>Biểu đồ Radar 5 Trục Sức khỏe Toàn diện (Patient Wellness Radar):</b>
+        <div class="radar-chart-wrap">
+          <svg viewBox="0 0 200 200" class="radar-svg">
+            <!-- Mạng lưới đa giác nền -->
+            <polygon points="100,20 176,75 147,165 53,165 24,75" fill="none" stroke="#e2e8f0" stroke-width="1"/>
+            <polygon points="100,45 153,83 133,145 67,145 47,83" fill="none" stroke="#e2e8f0" stroke-width="1"/>
+            <polygon points="100,70 130,92 118,126 82,126 70,92" fill="none" stroke="#e2e8f0" stroke-width="1"/>
+            <!-- Trục tọa độ -->
+            <line x1="100" y1="100" x2="100" y2="20" stroke="#cbd5e1" stroke-width="1"/>
+            <line x1="100" y1="100" x2="176" y2="75" stroke="#cbd5e1" stroke-width="1"/>
+            <line x1="100" y1="100" x2="147" y2="165" stroke="#cbd5e1" stroke-width="1"/>
+            <line x1="100" y1="100" x2="53" y2="165" stroke="#cbd5e1" stroke-width="1"/>
+            <line x1="100" y1="100" x2="24" y2="75" stroke="#cbd5e1" stroke-width="1"/>
+            <!-- Đa giác dữ liệu thực tế -->
+            <polygon points="100,24 172,77 143,160 57,157 26,76" fill="rgba(79, 70, 229, 0.2)" stroke="#4f46e5" stroke-width="2.5"/>
+            <!-- Các điểm nút -->
+            <circle cx="100" cy="24" r="4" fill="#4f46e5"/>
+            <circle cx="172" cy="77" r="4" fill="#4f46e5"/>
+            <circle cx="143" cy="160" r="4" fill="#4f46e5"/>
+            <circle cx="57" cy="157" r="4" fill="#4f46e5"/>
+            <circle cx="26" cy="76" r="4" fill="#4f46e5"/>
+          </svg>
+          <div class="radar-legend">
+            ${sc.map(s => `
+              <div><small>${s.axis}:</small> <b>${s.score}/100</b> (${s.detail})</div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>`;
+}
+
+function reviewPrognosis(){
+  if(state.role !== 'doctor') return;
+  state.prognosisRadar.reviewed = true;
+  state.prognosisRadar.reviewMeta = {
+    planId: state.careLoop.plan.planId,
+    revision: state.careLoop.plan.revision,
+    reviewedAt: new Date().toLocaleString('vi-VN'),
+    reviewedBy: 'BS. Mỹ Linh'
+  };
+  event('PROGNOSIS_RADAR_REVIEWED', { detail: `Đã review tiên lượng MSKCC: Median PFS ~${state.prognosisRadar.medianPfsMonths} tháng` });
+  save();
+  render();
+}
+
+function doctor(){ return shell(`${patientSummary()}${medicationSafetyBrief()}${healthPassportCard()}${prognosisRadarPanel()}${workloadAllocationPanel()}${voiceScribePanel()}${nccnPathwayViewer()}${clinicalCalculatorsPanel()}${ddiCheckerPanel()}${safetyLabsPanel()}${biomarkerEvolutionPanel()}${proTrendDashboard()}${recistAssessmentBrief()}${ctcaeToxicityGuide()}${rehabAssessmentPanel()}${mdtConsultationPanel()}${safetyQueue()}${doctorCareSnapshot()}${escalationReview()}${triageHandoff()}${doctorPatientVoice()}<div class="decision-layout"><section class="card"><small>DECISION BRIEF · TUẦN 6</small><h2>Tiếp tục điều trị hay cần đánh giá thêm?</h2><p class="lead">Bản tóm tắt cho một quyết định — không phải bệnh án. Mọi gợi ý cần bác sĩ xác nhận.</p>${patientVoice()}<div class="decision-lens"><small>DECISION LENS · FRAMING MÔ PHỎNG</small><h3>Câu hỏi lần khám</h3><b>Có thể tiếp tục liều hiện tại trong khi hoàn thiện dữ liệu an toàn và đáp ứng không?</b><div class="lens-grid"><div><small>Tín hiệu ủng hộ</small><p>Tuân thủ tốt · molecular phù hợp · độc tính demo G1–2</p></div><div><small>Next-best-information</small><p>CT tuần 8 · ECG/QTc · điện giải · xác minh toxicity trực tiếp</p></div></div><h3>Điểm bất định cần ghi nhận</h3>${uncertainties()}</div><div class="brief-columns"><div><h3>Dữ kiện mô phỏng</h3>${briefFacts(state.decisionBrief.facts,'fact')}</div><div><h3>Người bệnh báo cáo</h3>${briefFacts(state.decisionBrief.patientReported,'reported')}</div></div><h3>Evidence map · bấm từng mục để xác nhận đã review</h3>${evidenceMap()}${readinessPanel()}<h3>Safety gates</h3><div class="gates">${state.decisionBrief.safetyGates.map(g=>`<div class="gate ${g.status}"><span>${g.status==='ready'||g.status==='clear'?'✓':'!'}</span><div><b>${g.label}</b><small>${g.detail}</small></div></div>`).join('')}</div></section><section class="card"><small>CDS OPTIONS · KHÔNG PHẢI Y LỆNH</small><h2>Các hướng xử trí để bác sĩ cân nhắc</h2>${decisionOptions()}<label>Lý do quyết định / lý do từ chối gợi ý<textarea oninput="update(['doctor','decisionReason'],this.value)" placeholder="Bắt buộc ghi lý do trước khi xác nhận">${state.doctor.decisionReason}</textarea></label><div class="actions">${can('ready-for-doctor') ? button('Nhận ca','advance("doctor-examining","DOCTOR_ACCEPTED_CASE")','outline') : button('Chờ ĐD hoàn tất tiếp nhận','void(0)','disabled')}${hasUnresolvedRed() ? button('Đang có cảnh báo đỏ · phải xử trí trước','void(0)','disabled') : !decisionReady() ? button('Review evidence + xác nhận data gap trước','void(0)','disabled') : can('doctor-examining') && state.doctor.decisionReason.trim() ? button('Xác nhận quyết định · tạo handoff','confirmDecision()','primary') : button('Cần nhận ca + ghi lý do','void(0)','disabled')}</div></section><aside class="sticky"><section class="card evidence"><small>NGUỒN & PHIÊN BẢN</small><h3>${state.decisionBrief.evidence.title}</h3><p>${state.decisionBrief.evidence.version}</p><div class="warning">${state.decisionBrief.evidence.note}</div><hr><b>Dữ liệu còn thiếu</b><ul>${state.decisionBrief.safetyGates.filter(g=>g.status==='missing').map(g=>`<li>${g.label}</li>`).join('')}</ul></section></aside></div>${activityLog()}`); }
 function patientVoice(){ const p=state.previsit; const submitted=state.encounterState!=='previsit-draft'||p.submittedAt; return `<div class="patient-voice ${submitted?'submitted':''}"><div><small>PATIENT VOICE · NGUỒN NGƯỜI BỆNH TỰ BÁO CÁO</small><h3>${submitted?'Thông tin trước khám đã gửi':'Chưa có khai nhanh từ người bệnh'}</h3>${submitted?`<p><b>Mục tiêu:</b> ${p.goal||'Chưa nhập'}</p><p><b>Thay đổi:</b> ${p.changes||'Chưa nhập'}</p><small>Gửi lúc ${p.submittedAt||'không rõ'} · Không tự động xem là dữ kiện đã xác minh</small>`:'<p>Điều dưỡng/bác sĩ chưa nhận được patient voice. Đây là empty state, không phải lỗi hồ sơ.</p>'}</div><div>${submitted&&!p.doctorRead?button('Đánh dấu đã đọc','markPatientVoiceRead()','outline'):submitted?pill('BS đã đọc · patient-reported','green'):pill('Chờ người bệnh gửi')}</div></div>`; }
 function markPatientVoiceRead(){ state.previsit.doctorRead=true; event('PATIENT_VOICE_READ',{detail:'Bác sĩ đã đọc thông tin patient-reported trước khám'}); save(); render(); }
 function doctorPatientVoice(){ const v=state.patientVoice; if(v.status!=='submitted') return `<section class="card voice-empty"><small>PATIENT VOICE</small><b>Chưa có khai voice từ người bệnh</b><p>Đây là khoảng trống thông tin, không phải dữ liệu âm tính.</p></section>`; return `<section class="card patient-voice"><div><small>PATIENT VOICE · CHƯA XÁC MINH</small><h3>Người bệnh đã gửi bản nháp</h3><p>${v.transcript}</p><small>${v.capturedAt} · nguồn: người bệnh</small></div><button onclick="markVoiceRead()" class="${v.readByDoctor?'outline':'primary'}">${v.readByDoctor?'Đã đọc':'Đánh dấu đã đọc'}</button></section>`; }
