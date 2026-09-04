@@ -233,8 +233,14 @@ check(run("state.followupVaccine.insuranceCost.patientCoPayAmount") === 5600000,
 run("reviewFollowupVaccine()");
 check(run("state.followupVaccine.reviewed") === true, 'vaccine & cost marked reviewed');
 
+// Hereditary Oncology & Genetic Pedigree assertions
+check(run("state.geneticPedigree.pedigreeMembers.length") === 5, 'pedigree has 5 family members across 3 generations');
+check(run("state.geneticPedigree.somaticVsGermline.somaticDriver").includes('EGFR Exon 19'), 'somatic driver mutation preserved');
+run("reviewGeneticPedigree()");
+check(run("state.geneticPedigree.reviewed") === true, 'genetic pedigree marked as reviewed');
+
 console.log('LungCare smoke test: PASS');
-console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate, recist 1.1, ctcae v5.0, teach-back 10-point, mdt workflow, pro diary, soap summary, safety labs, biomarkers, ddi checker, rehab nutrition, caregiver sync, treatment journey, clinical calculators, nccn pathways, voice scribe, health passport, workload allocation, accessibility pwa, mskcc prognosis, ai patient assistant, vaccine cost tracker');
+console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate, recist 1.1, ctcae v5.0, teach-back 10-point, mdt workflow, pro diary, soap summary, safety labs, biomarkers, ddi checker, rehab nutrition, caregiver sync, treatment journey, clinical calculators, nccn pathways, voice scribe, health passport, workload allocation, accessibility pwa, mskcc prognosis, ai patient assistant, vaccine cost tracker, genetic pedigree');
 
 function stateValue(key) {
   return run(`Boolean(state.safetyRequests[0] && state.safetyRequests[0].${key})`);
