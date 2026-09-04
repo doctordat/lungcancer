@@ -218,8 +218,16 @@ check(run("state.prognosisRadar.radarScores.length") === 5, 'radar has 5 axes');
 run("reviewPrognosis()");
 check(run("state.prognosisRadar.reviewed") === true, 'prognosis marked as reviewed');
 
+// 24/7 AI Patient Assistant assertions
+check(run("state.patientAiChat.messages.length") >= 1, 'aiChat has initial greeting');
+run("handlePatientAiQuery('Tôi lỡ quên uống thuốc sáng nay')");
+check(run("state.patientAiChat.messages.at(-1).text").includes('Osimertinib 80mg'), 'AI correctly answers missed dose query');
+run("handlePatientAiQuery('Tôi bị khó thở khi nghỉ ngơi')");
+check(run("state.patientAiChat.messages.at(-1).alert") === 'red', 'AI flags red alert for dyspnea');
+check(run("hasUnresolvedRed()") === true, 'AI auto-triggers red triage');
+
 console.log('LungCare smoke test: PASS');
-console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate, recist 1.1, ctcae v5.0, teach-back 10-point, mdt workflow, pro diary, soap summary, safety labs, biomarkers, ddi checker, rehab nutrition, caregiver sync, treatment journey, clinical calculators, nccn pathways, voice scribe, health passport, workload allocation, accessibility pwa, mskcc prognosis');
+console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate, recist 1.1, ctcae v5.0, teach-back 10-point, mdt workflow, pro diary, soap summary, safety labs, biomarkers, ddi checker, rehab nutrition, caregiver sync, treatment journey, clinical calculators, nccn pathways, voice scribe, health passport, workload allocation, accessibility pwa, mskcc prognosis, ai patient assistant');
 
 function stateValue(key) {
   return run(`Boolean(state.safetyRequests[0] && state.safetyRequests[0].${key})`);

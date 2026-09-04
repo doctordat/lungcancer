@@ -551,6 +551,30 @@ main{
 .radar-legend small{color:#64748b;font-weight:750}
 .radar-legend b{color:#4f46e5}
 
+.ai-chat-card{border-color:#e879f9;background:#fdf4ff}
+.ai-chat-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.ai-bot-avatar{display:flex;align-items:center;gap:10px}
+.ai-bot-avatar>span{font-size:24px;width:38px;height:38px;border-radius:12px;background:#fae8ff;display:grid;place-items:center}
+.ai-bot-avatar b{font-size:14px;color:#86198f;display:block}
+.ai-bot-avatar small{color:#15803d;font-size:11px;font-weight:700}
+.ai-chat-body{background:white;border:1px solid #f5d0fe;border-radius:16px;padding:14px;max-height:260px;overflow-y:auto;display:flex;flex-direction:column;gap:10px}
+.chat-msg{display:flex;width:100%}
+.chat-msg.user-msg{justify-content:flex-end}
+.chat-msg.ai-msg{justify-content:flex-start}
+.msg-bubble{max-width:85%;padding:10px 14px;border-radius:14px;font-size:13px;line-height:1.45}
+.user-msg .msg-bubble{background:#4f46e5;color:white;border-bottom-right-radius:4px}
+.user-msg small{color:#c7d2fe;font-size:10px;display:block;text-align:right;margin-top:4px}
+.ai-msg .msg-bubble{background:#f8fafc;color:#1e293b;border:1px solid var(--line);border-bottom-left-radius:4px}
+.ai-msg small{color:#94a3b8;font-size:10px;display:block;margin-top:4px}
+.chat-msg.red-alert-msg .msg-bubble{background:#fef2f2;border-color:#fca5a5;color:#991b1b;font-weight:600}
+.ai-quick-prompts{margin-top:10px}
+.ai-quick-prompts small{display:block;color:#86198f;font-weight:750;margin-bottom:6px}
+.prompt-chips{display:flex;gap:6px;flex-wrap:wrap}
+.prompt-chip-btn{border:1px solid #f0abfc;background:white;color:#a21caf;border-radius:999px;padding:6px 10px;font-size:11.5px;cursor:pointer;font-weight:650}
+.prompt-chip-btn:hover{background:#fdf4ff;border-color:#d946ef}
+.ai-chat-input-box{display:flex;gap:8px;margin-top:12px}
+.ai-chat-input-box input{margin:0;border-radius:12px;padding:10px 14px;font-size:13px;border-color:#f5d0fe}
+
 .printable-handout{display:none}
 @media print{
   body *{visibility:hidden}
