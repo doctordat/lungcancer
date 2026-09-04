@@ -207,8 +207,13 @@ check(run("state.healthPassport.fhirSummary.driverGenetics").includes('EGFR Exon
 check(run("state.workloadAllocation.encounterCostTotalVnd") === 800000, 'workload total encounter cost is 800k');
 check(run("state.workloadAllocation.breakdown[0].sharePct") === 60, 'doctor workload share is 60%');
 
+// Accessibility & Large Text Mode assertions
+check(run("state.accessibility.largeTextMode") === false, 'largeTextMode initially false');
+run("toggleLargeTextMode()");
+check(run("state.accessibility.largeTextMode") === true, 'largeTextMode toggled to true');
+
 console.log('LungCare smoke test: PASS');
-console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate, recist 1.1, ctcae v5.0, teach-back 10-point, mdt workflow, pro diary, soap summary, safety labs, biomarkers, ddi checker, rehab nutrition, caregiver sync, treatment journey, clinical calculators, nccn pathways, voice scribe, health passport, workload allocation');
+console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate, recist 1.1, ctcae v5.0, teach-back 10-point, mdt workflow, pro diary, soap summary, safety labs, biomarkers, ddi checker, rehab nutrition, caregiver sync, treatment journey, clinical calculators, nccn pathways, voice scribe, health passport, workload allocation, accessibility pwa');
 
 function stateValue(key) {
   return run(`Boolean(state.safetyRequests[0] && state.safetyRequests[0].${key})`);

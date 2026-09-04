@@ -1,0 +1,17 @@
+{
+  "name": "LungCare Oncology Platform",
+  "short_name": "LungCare",
+  "description": "Nền tảng Hỗ trợ Ra Quyết định Lâm sàng & Chăm sóc Kết nối Ung thư Phổi",
+  "start_url": "./?role=patient",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#0f172a",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}
