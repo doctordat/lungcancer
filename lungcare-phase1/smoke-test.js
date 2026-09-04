@@ -192,8 +192,17 @@ check(run("state.clinicalCalculators.results.crClCockcroftGault") < 35, 'crCl re
 run("reviewCalculators()");
 check(run("state.clinicalCalculators.reviewed") === true, 'calculators marked reviewed');
 
+// NCCN Pathways & Voice Scribe assertions
+check(run("state.nccnPathways.pathwayTree.firstLineStandard.preferred").includes('Osimertinib 80mg'), 'NCCN preferred 1st line standard is Osimertinib 80mg');
+check(run("state.nccnPathways.pathwayTree.progressionPathways.length") === 4, 'NCCN progression tree has 4 resistance pathways');
+run("reviewNccnPathway()");
+check(run("state.nccnPathways.reviewed") === true, 'NCCN pathway marked as reviewed');
+
+check(run("state.voiceScribe.extractedEntities.subjective").includes('Osimertinib 80mg'), 'Voice Scribe extracted subjective entities');
+check(run("state.voiceScribe.extractedEntities.objective").includes('SLD giảm -34.0%'), 'Voice Scribe extracted objective RECIST data');
+
 console.log('LungCare smoke test: PASS');
-console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate, recist 1.1, ctcae v5.0, teach-back 10-point, mdt workflow, pro diary, soap summary, safety labs, biomarkers, ddi checker, rehab nutrition, caregiver sync, treatment journey, clinical calculators');
+console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate, recist 1.1, ctcae v5.0, teach-back 10-point, mdt workflow, pro diary, soap summary, safety labs, biomarkers, ddi checker, rehab nutrition, caregiver sync, treatment journey, clinical calculators, nccn pathways, voice scribe');
 
 function stateValue(key) {
   return run(`Boolean(state.safetyRequests[0] && state.safetyRequests[0].${key})`);

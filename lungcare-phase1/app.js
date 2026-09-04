@@ -263,6 +263,38 @@ const defaultState = () => ({
     reviewed: false,
     reviewMeta: null
   },
+  nccnPathways: {
+    guidelineVersion: 'NCCN Guidelines v2.2026 Non-Small Cell Lung Cancer',
+    selectedBiomarker: 'egfr_ex19del',
+    pathwayTree: {
+      histology: 'Adenocarcinoma (Ung thư biểu mô tuyến)',
+      stage: 'Stage IVA (cT2bN2M1a - Di căn màng phổi & xương)',
+      driverMutation: 'EGFR Exon 19 Deletion (p.E746_A750del)',
+      firstLineStandard: {
+        preferred: 'Osimertinib 80mg/ngày (Category 1, Preferred)',
+        evidenceTrial: 'FLAURA Trial (Median PFS 18.9 tháng vs 10.2 tháng Erlotinib/Gefitinib; Median OS 38.6 tháng, HR 0.80)',
+        combinationAlternative: 'Osimertinib + Platinum/Pemetrexed (FLAURA2 Trial, PFS 25.5 tháng, chỉ định ca gánh nặng u cao hoặc di căn não)'
+      },
+      progressionPathways: [
+        { mechanism: 'Đột biến EGFR C797S', nextStep: 'Chuyển TKI thế hệ 4 (nghiên cứu) hoặc Phối hợp TKI thế hệ 1 + 3 (nếu trans/cis)' },
+        { mechanism: 'Khuếch đại MET (MET Amplification)', nextStep: 'Phối hợp Osimertinib + Savolitinib / Amivantamab (SAVANNAH / MARIPOSA-2)' },
+        { mechanism: 'Chuyển dạng SCLC (Tế bào nhỏ)', nextStep: 'Hóa trị bộ đôi Etoposide + Cisplatin/Carboplatin' },
+        { mechanism: 'Tiến triển thiểu số (Oligoprogression)', nextStep: 'Tiếp tục Osimertinib 80mg + Xạ định vị SBRT vào tổn thương đích' }
+      ]
+    },
+    reviewed: false,
+    reviewMeta: null
+  },
+  voiceScribe: {
+    status: 'idle',
+    transcript: 'Bác sĩ Mỹ Linh: Chào chú Minh, tuần này chú uống thuốc Osimertinib 80mg đều không? Chú Minh: Dạ chào bác sĩ, tôi uống đủ mỗi sáng lúc 8h, chỉ quên 1 hôm sáng chủ nhật nhưng chiều uống bù ngay. Bác sĩ: Rất tốt, chú có bị tác dụng phụ gì không? Chú Minh: Bụng đi ngoài phân lỏng khoảng 3-4 lần mỗi ngày, tôi có uống 1 gói Oresol với 1 viên Loperamide thì thấy êm. Mặt và lưng nổi vài nốt mụn đỏ hơi ngứa nhẹ, tôi có bôi kem dưỡng. Bác sĩ: Chú có bị sốt hay khó thở khi leo cầu thang không? Chú Minh: Dạ không sốt, thở bình thường êm lắm bác sĩ. Bác sĩ: Kết quả CT tuần 8 khối u phổi đã giảm hơn 30%, đáp ứng rất tốt. Chú tiếp tục uống thuốc đúng giờ, nhớ uống nhiều nước nhé!',
+    extractedEntities: {
+      subjective: 'Bệnh nhân nam 62 tuổi, uống Osimertinib 80mg tuân thủ tốt (quên 1 liều đã uống bù). Tiêu chảy G2 (3-4 lần/ngày) đáp ứng với Oresol + Loperamide. Ban da dát sẩn G1 nhẹ vùng mặt/lưng. Không sốt, không khó thở (SpO2 98%).',
+      objective: 'CT ngực tuần 8: U thùy trên phổi phải giảm từ 32mm -> 22mm, hạch 18mm -> 11mm (SLD giảm -34.0% -> PR). QTcF 414ms, K+ 4.1, ctDNA 0.08% thanh thải sâu. CrCl 67.6 mL/min.',
+      assessment: 'NSCLC adenocarcinoma IVA EGFR ex19del tuần 6 đáp ứng một phần (PR - RECIST 1.1) theo NCCN Category 1. Độc tính G1-2 kiểm soát ổn định.',
+      plan: 'Tiếp tục Osimertinib 80mg/ngày. Duy trì Oresol + Loperamide khi tiêu chảy. Dưỡng ẩm da. Hoàn tất Teach-back 10 điểm. Hẹn tái khám & CT tuần 16.'
+    }
+  },
   alerts: []
 });
 
@@ -298,6 +330,17 @@ function normalize(raw) {
       results: { ...d.clinicalCalculators.results, ...(raw.clinicalCalculators?.results || {}) },
       reviewMeta: (raw.clinicalCalculators?.reviewMeta && raw.clinicalCalculators.reviewMeta.planId===careLoop.plan.planId && raw.clinicalCalculators.reviewMeta.revision===careLoop.plan.revision) ? raw.clinicalCalculators.reviewMeta : null,
       reviewed: Boolean(raw.clinicalCalculators?.reviewed && raw.clinicalCalculators?.reviewMeta?.planId===careLoop.plan.planId && raw.clinicalCalculators?.reviewMeta?.revision===careLoop.plan.revision)
+    },
+    nccnPathways: {
+      ...d.nccnPathways,
+      ...(raw.nccnPathways || {}),
+      reviewMeta: (raw.nccnPathways?.reviewMeta && raw.nccnPathways.reviewMeta.planId===careLoop.plan.planId && raw.nccnPathways.reviewMeta.revision===careLoop.plan.revision) ? raw.nccnPathways.reviewMeta : null,
+      reviewed: Boolean(raw.nccnPathways?.reviewed && raw.nccnPathways?.reviewMeta?.planId===careLoop.plan.planId && raw.nccnPathways?.reviewMeta?.revision===careLoop.plan.revision)
+    },
+    voiceScribe: {
+      ...d.voiceScribe,
+      ...(raw.voiceScribe || {}),
+      extractedEntities: { ...d.voiceScribe.extractedEntities, ...(raw.voiceScribe?.extractedEntities || {}) }
     },
     medicationSafety: { ...d.medicationSafety, ...(raw.medicationSafety || {}), reviewed:{...d.medicationSafety.reviewed,...(raw.medicationSafety?.reviewed||{})}, reviewMeta:{...d.medicationSafety.reviewMeta,...(raw.medicationSafety?.reviewMeta||{})}, checks:Array.isArray(raw.medicationSafety?.checks)?raw.medicationSafety.checks:d.medicationSafety.checks },
     careLoop,
@@ -1291,6 +1334,66 @@ function biomarkerEvolutionPanel(){
   </section>`;
 }
 
+function nccnPathwayViewer(){
+  const n = state.nccnPathways;
+  const t = n.pathwayTree;
+  return `<section class="card nccn-card"><small>NCCN & ESMO CLINICAL PATHWAYS · CÂY PHÁC ĐỒ ĐIỀU TRỊ CHUẨN QUỐC TẾ</small>
+    <div class="nccn-header">
+      <div>
+        <h3>${n.guidelineVersion}</h3>
+        <p>Phân nhánh điều trị cá thể hóa: ${t.histology} · ${t.stage}</p>
+        <small>Mức độ chứng cứ: <strong>Category 1 (FLAURA Trial)</strong> · Hướng dẫn số 1 thế giới cho NSCLC</small>
+      </div>
+      <div>
+        ${n.reviewed ? pill(`BS đã đối chiếu NCCN · ${n.reviewMeta?.reviewedAt || ''}`, 'green') : button('Xác nhận đối chiếu NCCN Pathway', 'reviewNccnPathway()', 'primary')}
+      </div>
+    </div>
+
+    <div class="nccn-tree-container">
+      <div class="nccn-branch standard-first-line">
+        <div class="nccn-badge-title">
+          <span class="nccn-pill preferred">PREFERRED BƯỚC 1 (CATEGORY 1)</span>
+          <b>${t.firstLineStandard.preferred}</b>
+        </div>
+        <div class="nccn-evidence-box">
+          <b>Bằng chứng thử nghiệm lâm sàng bản lề:</b>
+          <p>${t.firstLineStandard.evidenceTrial}</p>
+          <div class="nccn-alt"><small>Lựa chọn phối hợp khi gánh nặng u cao / di căn não:</small> <em>${t.firstLineStandard.combinationAlternative}</em></div>
+        </div>
+      </div>
+
+      <div class="nccn-branch progression-branch">
+        <div class="nccn-badge-title">
+          <span class="nccn-pill warning">DỰ PHÒNG XỬ TRÍ KHI TIẾN TRIỂN (NEXT-LINE PATHWAYS)</span>
+          <b>Chiến lược theo cơ chế kháng thuốc sinh học phân tử</b>
+        </div>
+        <div class="nccn-progression-grid">
+          ${t.progressionPathways.map(p => `
+            <div class="nccn-path-card">
+              <b>${p.mechanism}</b>
+              <p>${p.nextStep}</p>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  </section>`;
+}
+
+function reviewNccnPathway(){
+  if(state.role !== 'doctor') return;
+  state.nccnPathways.reviewed = true;
+  state.nccnPathways.reviewMeta = {
+    planId: state.careLoop.plan.planId,
+    revision: state.careLoop.plan.revision,
+    reviewedAt: new Date().toLocaleString('vi-VN'),
+    reviewedBy: 'BS. Mỹ Linh'
+  };
+  event('NCCN_PATHWAY_REVIEWED', { detail: 'Đã đối chiếu phác đồ Osimertinib 80mg Category 1 NCCN' });
+  save();
+  render();
+}
+
 function reviewBiomarkers(){
   if(state.role !== 'doctor') return;
   state.biomarkers.reviewed = true;
@@ -1309,6 +1412,44 @@ function reviewBiomarkers(){
   event('BIOMARKER_EVOLUTION_REVIEWED', { detail: 'Đã review động học ctDNA và bảng đột biến kháng thuốc' });
   save();
   render();
+}
+
+function voiceScribePanel(){
+  const v = state.voiceScribe;
+  const ext = v.extractedEntities;
+  return `<section class="card voice-scribe-card"><small>AI VOICE CLINICAL SCRIBE · TRỢ LÝ GHI ÂM & TRÍCH XUẤT SOAP TỰ ĐỘNG</small>
+    <div class="voice-scribe-header">
+      <div>
+        <h3>Trích xuất Bệnh án SOAP từ Đoạn hội thoại Bác sĩ - Người bệnh</h3>
+        <p>Tự động nhận diện thực thể y khoa (triệu chứng, tuân thủ, đáp ứng u, tác dụng phụ) từ giọng nói</p>
+      </div>
+      <div>
+        ${button('✨ Trích xuất & Dán vào SOAP EMR', 'applyVoiceScribeToSoap()', 'primary')}
+      </div>
+    </div>
+
+    <div class="voice-scribe-grid">
+      <div class="scribe-transcript-box">
+        <b>Đoạn hội thoại lâm sàng 3 phút (Audio Transcript):</b>
+        <p class="transcript-text">"${v.transcript}"</p>
+      </div>
+
+      <div class="scribe-entities-box">
+        <b>Thực thể lâm sàng đã phân loại tự động (Auto-classified SOAP):</b>
+        <div class="scribe-quadrants">
+          <div><small>[S] Chủ quan:</small><span>${ext.subjective}</span></div>
+          <div><small>[O] Khách quan:</small><span>${ext.objective}</span></div>
+          <div><small>[A] Đánh giá:</small><span>${ext.assessment}</span></div>
+          <div><small>[P] Kế hoạch:</small><span>${ext.plan}</span></div>
+        </div>
+      </div>
+    </div>
+  </section>`;
+}
+
+function applyVoiceScribeToSoap(){
+  copySoapSummary();
+  event('VOICE_SCRIBE_SOAP_APPLIED', { detail: 'Đã trích xuất và sao chép bệnh án SOAP từ AI Voice Scribe' });
 }
 
 function rehabAssessmentPanel(){
@@ -1505,7 +1646,7 @@ function reviewCalculators(){
   render();
 }
 
-function doctor(){ return shell(`${patientSummary()}${medicationSafetyBrief()}${clinicalCalculatorsPanel()}${ddiCheckerPanel()}${safetyLabsPanel()}${biomarkerEvolutionPanel()}${proTrendDashboard()}${recistAssessmentBrief()}${ctcaeToxicityGuide()}${rehabAssessmentPanel()}${mdtConsultationPanel()}${safetyQueue()}${doctorCareSnapshot()}${escalationReview()}${triageHandoff()}${doctorPatientVoice()}<div class="decision-layout"><section class="card"><small>DECISION BRIEF · TUẦN 6</small><h2>Tiếp tục điều trị hay cần đánh giá thêm?</h2><p class="lead">Bản tóm tắt cho một quyết định — không phải bệnh án. Mọi gợi ý cần bác sĩ xác nhận.</p>${patientVoice()}<div class="decision-lens"><small>DECISION LENS · FRAMING MÔ PHỎNG</small><h3>Câu hỏi lần khám</h3><b>Có thể tiếp tục liều hiện tại trong khi hoàn thiện dữ liệu an toàn và đáp ứng không?</b><div class="lens-grid"><div><small>Tín hiệu ủng hộ</small><p>Tuân thủ tốt · molecular phù hợp · độc tính demo G1–2</p></div><div><small>Next-best-information</small><p>CT tuần 8 · ECG/QTc · điện giải · xác minh toxicity trực tiếp</p></div></div><h3>Điểm bất định cần ghi nhận</h3>${uncertainties()}</div><div class="brief-columns"><div><h3>Dữ kiện mô phỏng</h3>${briefFacts(state.decisionBrief.facts,'fact')}</div><div><h3>Người bệnh báo cáo</h3>${briefFacts(state.decisionBrief.patientReported,'reported')}</div></div><h3>Evidence map · bấm từng mục để xác nhận đã review</h3>${evidenceMap()}${readinessPanel()}<h3>Safety gates</h3><div class="gates">${state.decisionBrief.safetyGates.map(g=>`<div class="gate ${g.status}"><span>${g.status==='ready'||g.status==='clear'?'✓':'!'}</span><div><b>${g.label}</b><small>${g.detail}</small></div></div>`).join('')}</div></section><section class="card"><small>CDS OPTIONS · KHÔNG PHẢI Y LỆNH</small><h2>Các hướng xử trí để bác sĩ cân nhắc</h2>${decisionOptions()}<label>Lý do quyết định / lý do từ chối gợi ý<textarea oninput="update(['doctor','decisionReason'],this.value)" placeholder="Bắt buộc ghi lý do trước khi xác nhận">${state.doctor.decisionReason}</textarea></label><div class="actions">${can('ready-for-doctor') ? button('Nhận ca','advance("doctor-examining","DOCTOR_ACCEPTED_CASE")','outline') : button('Chờ ĐD hoàn tất tiếp nhận','void(0)','disabled')}${hasUnresolvedRed() ? button('Đang có cảnh báo đỏ · phải xử trí trước','void(0)','disabled') : !decisionReady() ? button('Review evidence + xác nhận data gap trước','void(0)','disabled') : can('doctor-examining') && state.doctor.decisionReason.trim() ? button('Xác nhận quyết định · tạo handoff','confirmDecision()','primary') : button('Cần nhận ca + ghi lý do','void(0)','disabled')}</div></section><aside class="sticky"><section class="card evidence"><small>NGUỒN & PHIÊN BẢN</small><h3>${state.decisionBrief.evidence.title}</h3><p>${state.decisionBrief.evidence.version}</p><div class="warning">${state.decisionBrief.evidence.note}</div><hr><b>Dữ liệu còn thiếu</b><ul>${state.decisionBrief.safetyGates.filter(g=>g.status==='missing').map(g=>`<li>${g.label}</li>`).join('')}</ul></section></aside></div>${activityLog()}`); }
+function doctor(){ return shell(`${patientSummary()}${medicationSafetyBrief()}${voiceScribePanel()}${nccnPathwayViewer()}${clinicalCalculatorsPanel()}${ddiCheckerPanel()}${safetyLabsPanel()}${biomarkerEvolutionPanel()}${proTrendDashboard()}${recistAssessmentBrief()}${ctcaeToxicityGuide()}${rehabAssessmentPanel()}${mdtConsultationPanel()}${safetyQueue()}${doctorCareSnapshot()}${escalationReview()}${triageHandoff()}${doctorPatientVoice()}<div class="decision-layout"><section class="card"><small>DECISION BRIEF · TUẦN 6</small><h2>Tiếp tục điều trị hay cần đánh giá thêm?</h2><p class="lead">Bản tóm tắt cho một quyết định — không phải bệnh án. Mọi gợi ý cần bác sĩ xác nhận.</p>${patientVoice()}<div class="decision-lens"><small>DECISION LENS · FRAMING MÔ PHỎNG</small><h3>Câu hỏi lần khám</h3><b>Có thể tiếp tục liều hiện tại trong khi hoàn thiện dữ liệu an toàn và đáp ứng không?</b><div class="lens-grid"><div><small>Tín hiệu ủng hộ</small><p>Tuân thủ tốt · molecular phù hợp · độc tính demo G1–2</p></div><div><small>Next-best-information</small><p>CT tuần 8 · ECG/QTc · điện giải · xác minh toxicity trực tiếp</p></div></div><h3>Điểm bất định cần ghi nhận</h3>${uncertainties()}</div><div class="brief-columns"><div><h3>Dữ kiện mô phỏng</h3>${briefFacts(state.decisionBrief.facts,'fact')}</div><div><h3>Người bệnh báo cáo</h3>${briefFacts(state.decisionBrief.patientReported,'reported')}</div></div><h3>Evidence map · bấm từng mục để xác nhận đã review</h3>${evidenceMap()}${readinessPanel()}<h3>Safety gates</h3><div class="gates">${state.decisionBrief.safetyGates.map(g=>`<div class="gate ${g.status}"><span>${g.status==='ready'||g.status==='clear'?'✓':'!'}</span><div><b>${g.label}</b><small>${g.detail}</small></div></div>`).join('')}</div></section><section class="card"><small>CDS OPTIONS · KHÔNG PHẢI Y LỆNH</small><h2>Các hướng xử trí để bác sĩ cân nhắc</h2>${decisionOptions()}<label>Lý do quyết định / lý do từ chối gợi ý<textarea oninput="update(['doctor','decisionReason'],this.value)" placeholder="Bắt buộc ghi lý do trước khi xác nhận">${state.doctor.decisionReason}</textarea></label><div class="actions">${can('ready-for-doctor') ? button('Nhận ca','advance("doctor-examining","DOCTOR_ACCEPTED_CASE")','outline') : button('Chờ ĐD hoàn tất tiếp nhận','void(0)','disabled')}${hasUnresolvedRed() ? button('Đang có cảnh báo đỏ · phải xử trí trước','void(0)','disabled') : !decisionReady() ? button('Review evidence + xác nhận data gap trước','void(0)','disabled') : can('doctor-examining') && state.doctor.decisionReason.trim() ? button('Xác nhận quyết định · tạo handoff','confirmDecision()','primary') : button('Cần nhận ca + ghi lý do','void(0)','disabled')}</div></section><aside class="sticky"><section class="card evidence"><small>NGUỒN & PHIÊN BẢN</small><h3>${state.decisionBrief.evidence.title}</h3><p>${state.decisionBrief.evidence.version}</p><div class="warning">${state.decisionBrief.evidence.note}</div><hr><b>Dữ liệu còn thiếu</b><ul>${state.decisionBrief.safetyGates.filter(g=>g.status==='missing').map(g=>`<li>${g.label}</li>`).join('')}</ul></section></aside></div>${activityLog()}`); }
 function patientVoice(){ const p=state.previsit; const submitted=state.encounterState!=='previsit-draft'||p.submittedAt; return `<div class="patient-voice ${submitted?'submitted':''}"><div><small>PATIENT VOICE · NGUỒN NGƯỜI BỆNH TỰ BÁO CÁO</small><h3>${submitted?'Thông tin trước khám đã gửi':'Chưa có khai nhanh từ người bệnh'}</h3>${submitted?`<p><b>Mục tiêu:</b> ${p.goal||'Chưa nhập'}</p><p><b>Thay đổi:</b> ${p.changes||'Chưa nhập'}</p><small>Gửi lúc ${p.submittedAt||'không rõ'} · Không tự động xem là dữ kiện đã xác minh</small>`:'<p>Điều dưỡng/bác sĩ chưa nhận được patient voice. Đây là empty state, không phải lỗi hồ sơ.</p>'}</div><div>${submitted&&!p.doctorRead?button('Đánh dấu đã đọc','markPatientVoiceRead()','outline'):submitted?pill('BS đã đọc · patient-reported','green'):pill('Chờ người bệnh gửi')}</div></div>`; }
 function markPatientVoiceRead(){ state.previsit.doctorRead=true; event('PATIENT_VOICE_READ',{detail:'Bác sĩ đã đọc thông tin patient-reported trước khám'}); save(); render(); }
 function doctorPatientVoice(){ const v=state.patientVoice; if(v.status!=='submitted') return `<section class="card voice-empty"><small>PATIENT VOICE</small><b>Chưa có khai voice từ người bệnh</b><p>Đây là khoảng trống thông tin, không phải dữ liệu âm tính.</p></section>`; return `<section class="card patient-voice"><div><small>PATIENT VOICE · CHƯA XÁC MINH</small><h3>Người bệnh đã gửi bản nháp</h3><p>${v.transcript}</p><small>${v.capturedAt} · nguồn: người bệnh</small></div><button onclick="markVoiceRead()" class="${v.readByDoctor?'outline':'primary'}">${v.readByDoctor?'Đã đọc':'Đánh dấu đã đọc'}</button></section>`; }
