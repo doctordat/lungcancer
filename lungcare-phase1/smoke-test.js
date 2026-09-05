@@ -239,8 +239,20 @@ check(run("state.geneticPedigree.somaticVsGermline.somaticDriver").includes('EGF
 run("reviewGeneticPedigree()");
 check(run("state.geneticPedigree.reviewed") === true, 'genetic pedigree marked as reviewed');
 
+// DDI Pharmacopeia Search & FHIR R4 Bundle assertions
+check(run("state.ddiChecker.pharmacopeiaDb.length") >= 6, 'pharmacopeia has at least 6 drug interaction entries');
+run("searchDdiPharmacopeia('Pantoprazole')");
+check(run("state.ddiChecker.searchResult[0].risk").includes('Risk X'), 'DDI search correctly identifies Pantoprazole as Risk X');
+run("searchDdiPharmacopeia('Metformin')");
+check(run("state.ddiChecker.searchResult[0].risk").includes('Risk A'), 'DDI search correctly identifies Metformin as Risk A');
+
+const fhirBundle = run("generateFhirR4Bundle()");
+check(fhirBundle.resourceType === 'Bundle' && fhirBundle.entry.length === 7, 'FHIR R4 Bundle generated with 7 entries');
+check(fhirBundle.entry.some(e => e.resource.resourceType === 'Patient'), 'FHIR Bundle has Patient resource');
+check(fhirBundle.entry.some(e => e.resource.resourceType === 'MedicationStatement'), 'FHIR Bundle has MedicationStatement resource');
+
 console.log('LungCare smoke test: PASS');
-console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate, recist 1.1, ctcae v5.0, teach-back 10-point, mdt workflow, pro diary, soap summary, safety labs, biomarkers, ddi checker, rehab nutrition, caregiver sync, treatment journey, clinical calculators, nccn pathways, voice scribe, health passport, workload allocation, accessibility pwa, mskcc prognosis, ai patient assistant, vaccine cost tracker, genetic pedigree');
+console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate, recist 1.1, ctcae v5.0, teach-back 10-point, mdt workflow, pro diary, soap summary, safety labs, biomarkers, ddi checker, rehab nutrition, caregiver sync, treatment journey, clinical calculators, nccn pathways, voice scribe, health passport, workload allocation, accessibility pwa, mskcc prognosis, ai patient assistant, vaccine cost tracker, genetic pedigree, ddi search, fhir bundle export');
 
 function stateValue(key) {
   return run(`Boolean(state.safetyRequests[0] && state.safetyRequests[0].${key})`);
