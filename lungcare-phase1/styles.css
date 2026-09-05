@@ -632,3 +632,31 @@ main{
   .hotline-box{font-size:14pt;font-weight:bold;margin-top:10px;color:#b91c1c}
 }
 @media(max-width:1800px){.decision-layout{grid-template-columns:minmax(0,1fr)}.decision-layout aside{grid-column:auto}.top-actions{flex-wrap:wrap}.summary{align-items:flex-start}}@media(max-width:1200px){.decision-layout{grid-template-columns:1fr}.decision-layout aside{grid-column:1/-1}.handoff-grid{grid-template-columns:1fr}.snapshot-grid{grid-template-columns:1fr 1fr}.med-grid{grid-template-columns:1fr 1fr}}@media(max-width:1050px){.app{grid-template-columns:1fr}.side{height:auto;position:static}.flow,.grid.two,.grid.three,.layout,.decision-layout,.brief-columns,.gates{grid-template-columns:1fr}.summary,.top,.red-alert{flex-direction:column}.sticky{position:static}.decision-layout aside{grid-column:auto}}
+
+/* Mobile App Shell — touch-first, safe-area aware */
+.mobile-bottom-nav{display:none}
+@media(max-width:640px){
+  body{padding-bottom:calc(78px + env(safe-area-inset-bottom));overflow-x:hidden}
+  .app{display:block;min-height:100dvh}
+  .side{padding:12px 14px 8px;gap:10px;border-right:0;border-bottom:1px solid rgba(255,255,255,.12)}
+  .brand{gap:8px}.brand>b{width:36px;height:36px;border-radius:11px;font-size:15px}.brand span{font-size:9px}
+  .role-card{display:none}.side nav{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}.side nav::-webkit-scrollbar{display:none}
+  .nav{flex:1;justify-content:center;text-align:center;margin:0;padding:9px 8px;min-height:42px;font-size:12px;white-space:nowrap}
+  .patient-mini{margin:0;padding:8px 10px;border-radius:12px}.patient-mini small{font-size:9px}.patient-mini b{font-size:12px}.patient-mini span{font-size:10px;margin-top:2px}
+  .demo-controls{display:none}
+  main{padding:12px 12px 24px;width:100%;max-width:100%;}
+  .top{padding:14px;border-radius:16px;gap:12px;align-items:stretch;margin-bottom:12px}
+  .top h1{font-size:20px;line-height:1.15}.top-actions-bar{flex-direction:column;align-items:stretch;gap:8px}.top-scenario-nav{overflow-x:auto;white-space:nowrap}.top-util-btns{display:grid;grid-template-columns:1fr 1fr}.top-util-btns button{padding:10px 8px;font-size:11px}
+  .scenario-label{font-size:9px}.pill-btn{font-size:11px;padding:8px 9px;min-height:40px}
+  .flow{display:flex;overflow-x:auto;gap:6px;margin:10px 0 12px;padding-bottom:3px;scroll-snap-type:x mandatory}.flow .step{min-width:112px;scroll-snap-align:start;padding:8px;min-height:58px}.step b{font-size:10px}
+  .journey-card{overflow:hidden}.journey-timeline{display:flex;overflow-x:auto;gap:8px;padding-bottom:4px}.journey-node{min-width:220px}.journey-header,.recist-header,.ctcae-header,.mdt-header,.pro-trend-header,.safety-labs-header,.biomarker-header,.ddi-header,.caregiver-header,.workload-header,.passport-header,.calc-widget-header{flex-direction:column;gap:10px}
+  .card{padding:16px;border-radius:18px;margin-bottom:12px}.summary{gap:8px;align-items:flex-start}.summary h2{font-size:20px}.facts{gap:5px}.pill{font-size:11px;padding:6px 8px}
+  .med-grid,.ctcae-cards,.calc-widget-grid,.ddi-grid,.biomarker-grid,.prognosis-grid,.passport-grid,.workload-grid,.vaccine-cost-grid,.pedigree-grid,.voice-scribe-grid{grid-template-columns:1fr}
+  .med-check,.decision-option,.choice{min-height:52px}.pro-form-grid{grid-template-columns:1fr}.pro-buttons button{min-height:44px}.ai-chat-body{max-height:360px}.msg-bubble{max-width:92%;font-size:13px}
+  .pro-bars{min-width:560px}.pro-chart-container{overflow-x:auto}.recist-table,.ddi-table,.biomarker-table{min-width:620px}.recist-table-wrap{overflow-x:auto}
+  .radar-chart-wrap{grid-template-columns:1fr}.radar-svg{margin:auto;width:180px;height:180px}.safety-labs-grid,.rehab-admin-grid{grid-template-columns:1fr 1fr}
+  .mobile-bottom-nav{display:flex;position:fixed;z-index:20;left:0;right:0;bottom:0;padding:8px 10px calc(8px + env(safe-area-inset-bottom));background:rgba(15,23,42,.96);backdrop-filter:blur(14px);border-top:1px solid rgba(255,255,255,.1);justify-content:space-around;gap:4px}
+  .mobile-nav-item{display:flex;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:transparent;color:#94a3b8;padding:7px 3px;border-radius:10px;min-height:52px;font-size:11px}.mobile-nav-item span{font-size:19px;line-height:1}.mobile-nav-item small{font-size:10px}.mobile-nav-item.active{background:#eef2ff;color:#6366f1}.mobile-nav-item.emergency{color:#fca5a5}.mobile-nav-item.emergency:hover{background:#450a0a;color:#fecaca}
+}
+@media(min-width:641px){.mobile-bottom-nav{display:none}}
+@media(max-width:380px){main{padding-left:9px;padding-right:9px}.top h1{font-size:18px}.top-util-btns{grid-template-columns:1fr}.safety-labs-grid,.rehab-admin-grid{grid-template-columns:1fr}.journey-node{min-width:205px}}
