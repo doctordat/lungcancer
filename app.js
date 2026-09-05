@@ -655,6 +655,12 @@ function shell(content){
       ${content}
     </main>
     ${printHandoutTemplate()}
+    <nav class="mobile-bottom-nav" aria-label="Điều hướng nhanh">
+      <button class="mobile-nav-item ${state.role==='patient'?'active':''}" onclick="switchRole('patient')"><span>⌂</span><small>My Care</small></button>
+      <button class="mobile-nav-item ${state.role==='nurse'?'active':''}" onclick="switchRole('nurse')"><span>♡</span><small>Điều dưỡng</small></button>
+      <button class="mobile-nav-item ${state.role==='doctor'?'active':''}" onclick="switchRole('doctor')"><span>✚</span><small>Bác sĩ</small></button>
+      <button class="mobile-nav-item emergency" onclick="redDyspnea()"><span>!</span><small>Khẩn cấp</small></button>
+    </nav>
   </div>`;
 }
 
