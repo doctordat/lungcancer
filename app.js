@@ -187,26 +187,36 @@ const defaultState = () => ({
     interactions: [
       {
         drug: 'Omeprazole 20mg (Thuốc ức chế bơm Proton - PPI)',
-        severity: 'Major (Nghiêm trọng)',
+        severity: 'Major (Nghiêm trọng - Risk X)',
         level: 'major',
         mechanism: 'Tăng pH dịch vị dạ dày làm giảm độ hòa tan và giảm đáng kể nồng độ Osimertinib trong huyết tương (AUC giảm tới 30-40%), nguy cơ thất bại điều trị.',
         recommendation: 'Ngưng Omeprazole. Nếu cần điều trị dạ dày: Chuyển sang Antacid (như Nhôm/Magie hydroxyd) uống CÁCH Osimertinib ít nhất 2 giờ TRƯỚC hoặc SAU.'
       },
       {
         drug: 'Cao thảo dược trị ho (Đông y không rõ thành phần)',
-        severity: 'Moderate (Cần thận trọng)',
+        severity: 'Moderate (Cần thận trọng - Risk D)',
         level: 'moderate',
         mechanism: 'Nguy cơ chứa các dược liệu cảm ứng hoặc ức chế enzym chuyển hóa gan CYP3A4, làm dao động nồng độ Osimertinib khó kiểm soát hoặc tăng độc tính gan.',
         recommendation: 'Tạm ngưng thảo dược đông y chưa rõ nguồn gốc. Theo dõi sát men gan AST/ALT.'
       },
       {
         drug: 'Amlodipine 5mg (Thuốc chẹn kênh Canxi)',
-        severity: 'Minor (Theo dõi)',
+        severity: 'Minor (Theo dõi - Risk C)',
         level: 'minor',
         mechanism: 'Cả 2 thuốc đều chuyển hóa qua CYP3A4 nhưng không gây ức chế/cảm ứng mạnh. Không tương tác nghiêm trọng.',
         recommendation: 'Tiếp tục duy trì Amlodipine 5mg. Theo dõi huyết áp định kỳ.'
       }
     ],
+    pharmacopeiaDb: [
+      { name: 'Pantoprazole / Esomeprazole (PPI)', risk: 'Risk X (Chống chỉ định phối hợp)', level: 'major', mechanism: 'Giảm 35-40% nồng độ Osimertinib do tăng pH dạ dày.', action: 'Ngưng PPI, đổi sang Antacid uống cách 2 giờ.' },
+      { name: 'Clarithromycin / Ketoconazole', risk: 'Risk D (Ức chế mạnh CYP3A4)', level: 'major', mechanism: 'Tăng 1.5 - 2 lần nồng độ Osimertinib, tăng nguy cơ kéo dài QTc và tiêu chảy nặng.', action: 'Tránh dùng chung; nếu bắt buộc phải dùng, theo dõi sát ECG và độc tính.' },
+      { name: 'Rifampin / Phenytoin / St. John\'s Wort', risk: 'Risk X (Cảm ứng mạnh CYP3A4)', level: 'major', mechanism: 'Giảm tới 70-80% nồng độ Osimertinib trong máu, làm mất hoàn toàn hiệu quả điều trị.', action: 'Chống chỉ định tuyệt đối phối hợp với Osimertinib.' },
+      { name: 'Amiodarone / Sotalol', risk: 'Risk D (Nguy cơ kéo dài QTc hiệp đồng)', level: 'major', mechanism: 'Tăng nguy cơ loạn nhịp xoắn đỉnh tim mạch (Torsades de Pointes).', action: 'Theo dõi điện tâm đồ QTcF định kỳ 2 tuần/lần, duy trì K+ > 4.0 mmol/L.' },
+      { name: 'Dexamethasone (Corticosteroid)', risk: 'Risk C (Cảm ứng nhẹ-vừa CYP3A4)', level: 'moderate', mechanism: 'Dùng liều cao kéo dài có thể làm giảm nhẹ nồng độ TKI.', action: 'Dùng đợt ngắn ngày (ngừa nôn), không dùng kéo dài nếu không có chỉ định.' },
+      { name: 'Metformin 500mg', risk: 'Risk A (An toàn / Không tương tác)', level: 'minor', mechanism: 'Không qua enzym CYP3A4, không ảnh hưởng dược động học.', action: 'Tiếp tục sử dụng theo đơn điều trị đái tháo đường.' }
+    ],
+    searchQuery: '',
+    searchResult: null,
     reviewed: false,
     reviewMeta: null
   },
@@ -404,7 +414,15 @@ function normalize(raw) {
     mdt: { ...d.mdt, ...(raw.mdt || {}), panel: Array.isArray(raw.mdt?.panel) ? raw.mdt.panel : d.mdt.panel, reviewMeta: (raw.mdt?.reviewMeta && raw.mdt.reviewMeta.planId===careLoop.plan.planId && raw.mdt.reviewMeta.revision===careLoop.plan.revision) ? raw.mdt.reviewMeta : null, reviewed: Boolean(raw.mdt?.reviewed && raw.mdt?.reviewMeta?.planId===careLoop.plan.planId && raw.mdt.reviewMeta?.revision===careLoop.plan.revision) },
     safetyLabs: { ...d.safetyLabs, ...(raw.safetyLabs || {}), reviewMeta: (raw.safetyLabs?.reviewMeta && raw.safetyLabs.reviewMeta.planId===careLoop.plan.planId && raw.safetyLabs.reviewMeta.revision===careLoop.plan.revision) ? raw.safetyLabs.reviewMeta : null, reviewed: Boolean(raw.safetyLabs?.reviewed && raw.safetyLabs?.reviewMeta?.planId===careLoop.plan.planId && raw.safetyLabs?.reviewMeta?.revision===careLoop.plan.revision) },
     biomarkers: { ...d.biomarkers, ...(raw.biomarkers || {}), resistanceMarkers: Array.isArray(raw.biomarkers?.resistanceMarkers) ? raw.biomarkers.resistanceMarkers : d.biomarkers.resistanceMarkers, ctDnaTrend: Array.isArray(raw.biomarkers?.ctDnaTrend) ? raw.biomarkers.ctDnaTrend : d.biomarkers.ctDnaTrend, reviewMeta: (raw.biomarkers?.reviewMeta && raw.biomarkers.reviewMeta.planId===careLoop.plan.planId && raw.biomarkers.reviewMeta.revision===careLoop.plan.revision) ? raw.biomarkers.reviewMeta : null, reviewed: Boolean(raw.biomarkers?.reviewed && raw.biomarkers?.reviewMeta?.planId===careLoop.plan.planId && raw.biomarkers?.reviewMeta?.revision===careLoop.plan.revision) },
-    ddiChecker: { ...d.ddiChecker, ...(raw.ddiChecker || {}), concomitantMeds: Array.isArray(raw.ddiChecker?.concomitantMeds) ? raw.ddiChecker.concomitantMeds : d.ddiChecker.concomitantMeds, interactions: Array.isArray(raw.ddiChecker?.interactions) ? raw.ddiChecker.interactions : d.ddiChecker.interactions, reviewMeta: (raw.ddiChecker?.reviewMeta && raw.ddiChecker.reviewMeta.planId===careLoop.plan.planId && raw.ddiChecker.reviewMeta.revision===careLoop.plan.revision) ? raw.ddiChecker.reviewMeta : null, reviewed: Boolean(raw.ddiChecker?.reviewed && raw.ddiChecker?.reviewMeta?.planId===careLoop.plan.planId && raw.ddiChecker?.reviewMeta?.revision===careLoop.plan.revision) },
+    ddiChecker: {
+      ...d.ddiChecker,
+      ...(raw.ddiChecker || {}),
+      concomitantMeds: Array.isArray(raw.ddiChecker?.concomitantMeds) ? raw.ddiChecker.concomitantMeds : d.ddiChecker.concomitantMeds,
+      interactions: Array.isArray(raw.ddiChecker?.interactions) ? raw.ddiChecker.interactions : d.ddiChecker.interactions,
+      pharmacopeiaDb: Array.isArray(raw.ddiChecker?.pharmacopeiaDb) ? raw.ddiChecker.pharmacopeiaDb : d.ddiChecker.pharmacopeiaDb,
+      reviewMeta: (raw.ddiChecker?.reviewMeta && raw.ddiChecker.reviewMeta.planId===careLoop.plan.planId && raw.ddiChecker.reviewMeta.revision===careLoop.plan.revision) ? raw.ddiChecker.reviewMeta : null,
+      reviewed: Boolean(raw.ddiChecker?.reviewed && raw.ddiChecker?.reviewMeta?.planId===careLoop.plan.planId && raw.ddiChecker?.reviewMeta?.revision===careLoop.plan.revision)
+    },
     rehabNutrition: { ...d.rehabNutrition, ...(raw.rehabNutrition || {}), exercises: Array.isArray(raw.rehabNutrition?.exercises) ? raw.rehabNutrition.exercises : d.rehabNutrition.exercises, reviewMeta: (raw.rehabNutrition?.reviewMeta && raw.rehabNutrition.reviewMeta.planId===careLoop.plan.planId && raw.rehabNutrition.reviewMeta.revision===careLoop.plan.revision) ? raw.rehabNutrition.reviewMeta : null, reviewed: Boolean(raw.rehabNutrition?.reviewed && raw.rehabNutrition?.reviewMeta?.planId===careLoop.plan.planId && raw.rehabNutrition?.reviewMeta?.revision===careLoop.plan.revision) },
     caregiverSync: {
       primaryCaregiver: { ...d.caregiverSync.primaryCaregiver, ...(raw.caregiverSync?.primaryCaregiver || {}) },
@@ -956,6 +974,105 @@ function testCaregiverAlert(){
   render();
 }
 
+function generateFhirR4Bundle(){
+  const p = state.patient;
+  const s = state.healthPassport.fhirSummary;
+  const l = state.safetyLabs;
+  const r = state.recist;
+  const pr = state.prognosisRadar;
+
+  const bundle = {
+    resourceType: "Bundle",
+    type: "document",
+    timestamp: new Date().toISOString(),
+    identifier: { system: "http://lungcare.oncology.vn/fhir/bundle", value: state.healthPassport.passportId },
+    entry: [
+      {
+        resource: {
+          resourceType: "Patient",
+          id: p.code,
+          name: [{ use: "official", text: p.name }],
+          gender: p.sex === 'Nam' ? 'male' : 'female',
+          birthDate: "1964-05-12"
+        }
+      },
+      {
+        resource: {
+          resourceType: "Condition",
+          id: "cond-nsclc-1",
+          clinicalStatus: { coding: [{ system: "http://terminology.hl7.org/CodeSystem/condition-clinical", code: "active" }] },
+          code: { text: p.diagnosis + " · " + p.stage + " (" + p.tnm + ")" },
+          subject: { reference: "Patient/" + p.code }
+        }
+      },
+      {
+        resource: {
+          resourceType: "Observation",
+          id: "obs-genetics-egfr",
+          status: "final",
+          code: { text: "EGFR Driver Mutation" },
+          valueString: s.driverGenetics,
+          subject: { reference: "Patient/" + p.code }
+        }
+      },
+      {
+        resource: {
+          resourceType: "Observation",
+          id: "obs-ctdna",
+          status: "final",
+          code: { text: "Circulating Tumor DNA (ctDNA) Abundance" },
+          valueQuantity: { value: 0.08, unit: "%", system: "http://unitsofmeasure.org", code: "%" },
+          interpretation: [{ text: "Deep Molecular Response (Clearance)" }],
+          subject: { reference: "Patient/" + p.code }
+        }
+      },
+      {
+        resource: {
+          resourceType: "Observation",
+          id: "obs-recist-response",
+          status: "final",
+          code: { text: "RECIST 1.1 Tumor Response" },
+          valueString: r.overallResponse + " (" + r.sumChangePct + "%)",
+          subject: { reference: "Patient/" + p.code }
+        }
+      },
+      {
+        resource: {
+          resourceType: "MedicationStatement",
+          id: "med-osimertinib",
+          status: "active",
+          medicationCodeableConcept: { text: "Osimertinib 80mg oral tablet" },
+          dosage: [{ text: "1 viên uống 08:00 sáng mỗi ngày" }],
+          subject: { reference: "Patient/" + p.code }
+        }
+      },
+      {
+        resource: {
+          resourceType: "AllergyIntolerance",
+          id: "allergy-ddi-alert",
+          clinicalStatus: { coding: [{ system: "http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical", code: "active" }] },
+          criticality: "high",
+          code: { text: "CHỐNG CHỈ ĐỊNH / TƯƠNG TÁC THUỐC: Thuốc ức chế acid dạ dày PPI (Omeprazole), Thảo dược không rõ nguồn gốc" },
+          patient: { reference: "Patient/" + p.code }
+        }
+      }
+    ]
+  };
+  return bundle;
+}
+
+function downloadFhirBundleJson(){
+  const bundle = generateFhirR4Bundle();
+  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(bundle, null, 2));
+  const downloadAnchor = document.createElement('a');
+  downloadAnchor.setAttribute("href", dataStr);
+  downloadAnchor.setAttribute("download", `FHIR_Bundle_${state.patient.code}_${Date.now()}.json`);
+  document.body.appendChild(downloadAnchor);
+  downloadAnchor.click();
+  downloadAnchor.remove();
+  event('FHIR_BUNDLE_EXPORTED', { detail: 'Đã xuất gói dữ liệu chuẩn y tế quốc tế HL7 FHIR R4 JSON Bundle' });
+}
+
 function healthPassportCard(){
   const hp = state.healthPassport;
   const s = hp.fhirSummary;
@@ -966,7 +1083,8 @@ function healthPassportCard(){
         <p>Quét mã QR để truy xuất ngay Đột biến Gen, Liều thuốc và Cảnh báo Khẩn cấp khi đi khám tuyến khác</p>
         <small>Cấp ngày: ${hp.issuedDate} · ${s.managingCenter}</small>
       </div>
-      <div>
+      <div class="passport-actions">
+        <button class="outline" onclick="downloadFhirBundleJson()">📦 Tải FHIR JSON Bundle</button>
         <button class="primary" onclick="window.print()">🖨 In Thẻ Hộ Chiếu QR</button>
       </div>
     </div>
@@ -1231,6 +1349,19 @@ function handoffCards(audience){
   return `<div class="handoff-grid">${cards.map(c=>`<div class="handoff"><small>${c[0]}</small><b>${c[1]}</b><p>${c[2]}</p></div>`).join('')}</div>`;
 }
 
+function searchDdiPharmacopeia(query){
+  state.ddiChecker.searchQuery = query;
+  if(!query.trim()){
+    state.ddiChecker.searchResult = null;
+  } else {
+    const q = query.toLowerCase();
+    const matches = state.ddiChecker.pharmacopeiaDb.filter(d => d.name.toLowerCase().includes(q) || d.mechanism.toLowerCase().includes(q));
+    state.ddiChecker.searchResult = matches.length ? matches : [{ name: `Thuốc tra cứu: "${query}"`, risk: 'Chưa phát hiện tương tác nguy cơ cao', level: 'minor', mechanism: 'Không tìm thấy tương tác chuyển hóa CYP3A4 hoặc hấp thu đã báo cáo với Osimertinib.', action: 'Có thể sử dụng thận trọng, theo dõi triệu chứng tiêu hóa/tim mạch.' }];
+  }
+  save();
+  render();
+}
+
 function ddiCheckerPanel(){
   const d = state.ddiChecker;
   return `<section class="card ddi-card"><small>DRUG-DRUG INTERACTION (DDI) & MEDICATION RECONCILIATION · ĐỐI CHIẾU TƯƠNG TÁC THUỐC</small>
@@ -1243,6 +1374,28 @@ function ddiCheckerPanel(){
       <div>
         ${d.reviewed ? pill(`Đã đối chiếu & xử trí tương tác · ${d.reviewMeta?.reviewedAt || ''}`, 'green') : button('Xác nhận xử trí tương tác thuốc', 'reviewDdi()', 'primary')}
       </div>
+    </div>
+
+    <!-- Thanh tìm kiếm Dược thư Tương tác nhanh -->
+    <div class="ddi-search-bar-wrap">
+      <b>🔍 Tra cứu tương tác thuốc bổ sung (Search Pharmacopeia):</b>
+      <div class="ddi-search-input-box">
+        <input type="text" value="${d.searchQuery || ''}" placeholder="Gõ tên thuốc cần tra (VD: Pantoprazole, Dexamethasone, Ciprofloxacin, Metformin...)" oninput="searchDdiPharmacopeia(this.value)"/>
+      </div>
+      ${d.searchResult ? `
+        <div class="ddi-search-results">
+          ${d.searchResult.map(res => `
+            <div class="ddi-alert-card ${res.level}">
+              <div class="ddi-alert-top">
+                <b>${res.name}</b>
+                <span class="pill ${res.level==='major'?'red':res.level==='moderate'?'yellow':'green'}">${res.risk}</span>
+              </div>
+              <p><strong>Cơ chế:</strong> ${res.mechanism}</p>
+              <div class="ddi-rec"><strong>Khuyến cáo:</strong> ${res.action}</div>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
     </div>
 
     <div class="ddi-grid">
