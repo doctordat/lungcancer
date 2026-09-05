@@ -254,18 +254,18 @@ check(fhirBundle.entry.some(e => e.resource.resourceType === 'MedicationStatemen
 // Role Sub-Tabs Navigation assertions
 run("state = defaultState(); state.role='patient'");
 check(run("state.roleTabs.patient") === 'today', 'default patient tab is today');
-run("setRoleTab('pro')");
-check(run("state.roleTabs.patient") === 'pro', 'patient tab switched to pro');
+run("setRoleTab('health')");
+check(run("state.roleTabs.patient") === 'health', 'patient tab switched to health');
 
 run("state.role='doctor'");
-check(run("state.roleTabs.doctor") === 'command', 'default doctor tab is command');
-run("setRoleTab('clinical')");
-check(run("state.roleTabs.doctor") === 'clinical', 'doctor tab switched to clinical');
+check(run("state.roleTabs.doctor") === 'overview', 'default doctor tab is overview');
+run("setRoleTab('patients')");
+check(run("state.roleTabs.doctor") === 'patients', 'doctor tab switched to patients');
 
 run("state.role='nurse'");
-check(run("state.roleTabs.nurse") === 'intake', 'default nurse tab is intake');
-run("setRoleTab('teachback')");
-check(run("state.roleTabs.nurse") === 'teachback', 'nurse tab switched to teachback');
+check(run("state.roleTabs.nurse") === 'today', 'default nurse tab is today');
+run("setRoleTab('tasks')");
+check(run("state.roleTabs.nurse") === 'tasks', 'nurse tab switched to tasks');
 
 // Smart Workflow Coach & Fast Forward assertions
 run("state = defaultState()");
@@ -279,9 +279,9 @@ check(run("state.role") === 'patient', 'role returns to patient after fast forwa
 
 // Global Search & Slim Red Alert assertions
 run("handleGlobalSearch('recist')");
-check(run("state.role") === 'doctor' && run("state.roleTabs.doctor") === 'clinical', 'search jumps to clinical tab');
+check(run("state.role") === 'doctor' && run("state.roleTabs.doctor") === 'patients', 'search jumps to doctor patients tab');
 run("handleGlobalSearch('nhật ký')");
-check(run("state.role") === 'patient' && run("state.roleTabs.patient") === 'pro', 'search jumps to pro tab');
+check(run("state.role") === 'patient' && run("state.roleTabs.patient") === 'health', 'search jumps to health tab');
 
 console.log('LungCare smoke test: PASS');
 console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate, recist 1.1, ctcae v5.0, teach-back 10-point, mdt workflow, pro diary, soap summary, safety labs, biomarkers, ddi checker, rehab nutrition, caregiver sync, treatment journey, clinical calculators, nccn pathways, voice scribe, health passport, workload allocation, accessibility pwa, mskcc prognosis, ai patient assistant, vaccine cost tracker, genetic pedigree, ddi search, fhir bundle export, role sub-tabs mobile, smart coach, slim red alert & search');

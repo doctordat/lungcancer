@@ -261,6 +261,83 @@ main{
 .pill.yellow{background:#fffbeb;color:#b45309;border-color:#fde68a}
 .pill.red{background:var(--soft-red);color:var(--red);border-color:#fca5a5}
 
+/* Mobile-First Progressive Disclosure Architecture */
+.patient-home-container, .patient-section-container, .doctor-overview-container, .doctor-patients-container, .doctor-tasks-container, .doctor-more-container, .nurse-home-container, .nurse-tasks-container, .nurse-patients-container, .nurse-more-container{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+.patient-greeting-card{
+  background:linear-gradient(135deg,#eef2ff,#f8fafc);
+  border:1px solid #e0e7ff;
+  border-radius:20px;
+  padding:16px 20px;
+}
+.patient-greeting-card h2{margin:4px 0 2px;font-size:22px;color:#1e1b4b}
+.patient-greeting-card p{margin:0;font-size:13px;color:#475569}
+.patient-med-hero{
+  background:linear-gradient(135deg,#ffffff,#f0fdf4);
+  border:1.5px solid #86efac;
+}
+.med-hero-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.badge-tag{background:#dcfce7;color:#15803d;font-size:11px;font-weight:900;padding:3px 8px;border-radius:6px}
+.med-hero-top h3{margin:6px 0 2px;font-size:20px;color:#0f172a}
+.med-hero-top p{margin:0;font-size:13px;color:#475569}
+.hero-btn{font-size:13px;padding:12px 18px;border-radius:14px;white-space:nowrap}
+.med-hero-footer{display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:10px;border-top:1px solid #dcfce7}
+.text-btn{background:transparent;border:0;color:#dc2626;font-size:12px;cursor:pointer;padding:4px 8px;font-weight:750}
+.patient-quick-feel{background:white;padding:16px}
+.feel-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.feel-btn{display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;border-radius:14px;border:1px solid var(--line);font-size:13.5px;font-weight:750}
+.feel-btn.good{background:#f0fdf4;border-color:#bbf7d0;color:#15803d}
+.feel-btn.warning{background:#fffbeb;border-color:#fde68a;color:#b45309}
+.appointment-row{display:flex;align-items:center;gap:14px}
+.apt-icon{font-size:26px;width:44px;height:44px;border-radius:12px;background:#f1f5f9;display:grid;place-items:center}
+.apt-info{flex:1}
+.apt-info small{color:#64748b;font-weight:800;font-size:10.5px}
+.apt-info b{display:block;font-size:15px;color:#0f172a;margin:2px 0}
+.apt-info p{margin:0;font-size:12px;color:#64748b}
+.patient-shortcuts-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:4px}
+.shortcut-tile{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:white;border:1px solid var(--line);border-radius:16px;padding:12px 6px;text-align:center;cursor:pointer}
+.shortcut-tile span{font-size:22px}
+.shortcut-tile b{font-size:11px;color:#334155}
+
+/* Drill-Down Menu List */
+.drill-menu-list{display:grid;gap:8px}
+.drill-menu-item{display:flex;justify-content:space-between;align-items:center;background:white;border:1px solid var(--line);border-radius:16px;padding:14px 16px;cursor:pointer;transition:all 0.2s ease}
+.drill-menu-item:hover{border-color:#a5b4fc;background:#fbfbfe;transform:translateX(2px)}
+.item-left{display:flex;align-items:center;gap:12px}
+.item-icon{font-size:22px;width:38px;height:38px;border-radius:10px;background:#f8fafc;display:grid;place-items:center}
+.item-left b{display:block;font-size:14px;color:#0f172a}
+.item-left small{color:#64748b;font-size:12px}
+.chevron{font-size:20px;color:#94a3b8;font-weight:700}
+.drill-header{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.back-btn{background:#e2e8f0;border:0;color:#1e293b;padding:8px 12px;font-size:12px;font-weight:800;border-radius:10px;cursor:pointer}
+.drill-header h3{margin:0;font-size:16px;color:#1e1b4b}
+.section-title-row h2{margin:0 0 2px;font-size:20px;color:#0f172a}
+.section-title-row p{margin:0 0 8px;font-size:12.5px;color:#64748b}
+
+/* Doctor Overview & Focus Card */
+.danger-callout-card{background:#fef2f2;border-color:#fca5a5;border-left:4px solid #ef4444}
+.danger-callout-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.badge-tag.red{background:#fee2e2;color:#b91c1c}
+.btn-sm{padding:8px 12px;font-size:12px;border-radius:10px;margin-top:8px}
+.doctor-focus-patient{background:linear-gradient(135deg,#ffffff,#faf5ff);border:1.5px solid #c7d2fe;cursor:pointer}
+.focus-patient-top{display:flex;justify-content:space-between;align-items:flex-start}
+.focus-patient-top h3{margin:4px 0 2px;font-size:18px;color:#1e1b4b}
+.focus-patient-top p{margin:0;font-size:12.5px;color:#64748b}
+.chevron-box{font-size:22px;color:#818cf8;font-weight:800}
+.focus-patient-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.decision-quick-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.quick-chips-scroll{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-top:8px}
+.chip-btn{background:white;border:1px solid #cbd5e1;padding:8px 12px;border-radius:12px;font-size:12px;font-weight:750;color:#334155;white-space:nowrap}
+.chip-btn:hover{background:#f1f5f9;border-color:#94a3b8}
+.patient-select-card{background:white;border:1.5px solid var(--purple);border-radius:16px;padding:14px;margin-bottom:8px}
+.patient-select-header{display:flex;justify-content:space-between;align-items:flex-start}
+.badge-code{background:#f1f5f9;color:#475569;font-size:11px;padding:2px 6px;border-radius:4px}
+.badge-red-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#ef4444;margin-left:2px}
+.badge-blue-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#3b82f6;margin-left:2px}
+
 .global-search-bar{
   display:flex;
   align-items:center;
