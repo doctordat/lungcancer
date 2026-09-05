@@ -537,7 +537,125 @@ const doneCount = (obj) => Object.values(obj).filter(Boolean).length;
 const pill = (text, tone='') => `<span class="pill ${tone}">${text}</span>`;
 const button = (label, action, cls='') => `<button class="${cls}" onclick="${action}">${label}</button>`;
 
-function scenarioControls(){ if(!['doctor','nurse'].includes(state.role)) return ''; return `<div class="demo-controls"><small>DEMO / QA SCENARIO</small><button class="ghost" onclick="resetScenario('routine')">Routine</button><button class="ghost" onclick="resetScenario('yellow')">Yellow</button><button class="ghost" onclick="resetScenario('red')">Red</button></div>`; }
+function getSmartNextAction(){
+  const s = state.encounterState;
+  const r = state.role;
+
+  if(s === 'previsit-draft'){
+    return {
+      targetRole: 'patient',
+      actionLabel: '1. Bệnh nhân: Khai nhanh & Gửi trước khám',
+      btnText: 'Gửi khai nhanh ➔',
+      actionFn: 'advance("previsit-submitted","PREVISIT_SUBMITTED"); switchRole("nurse"); setRoleTab("intake");',
+      hint: 'Bước 1/7: Người bệnh xác nhận lịch hẹn và gửi triệu chứng trước khám'
+    };
+  }
+  if(s === 'previsit-submitted' || s === 'nurse-intake'){
+    return {
+      targetRole: 'nurse',
+      actionLabel: '2. Điều dưỡng: Hoàn tất tiếp nhận & Sinh hiệu',
+      btnText: 'Duyệt Tiếp nhận ➔',
+      actionFn: '["idChecked","vitals","allergy","medrec","redflags"].forEach(k=>state.intake[k]=true); advance("ready-for-doctor","NURSE_INTAKE_COMPLETED"); switchRole("doctor"); setRoleTab("command");',
+      hint: 'Bước 2/7: Điều dưỡng đối chiếu định danh, đo sinh hiệu và kiểm tra tương tác thuốc'
+    };
+  }
+  if(s === 'ready-for-doctor'){
+    return {
+      targetRole: 'doctor',
+      actionLabel: '3. Bác sĩ: Nhận ca & Bắt đầu khám',
+      btnText: 'Nhận ca khám ➔',
+      actionFn: 'advance("doctor-examining","DOCTOR_ACCEPTED_CASE"); setRoleTab("command");',
+      hint: 'Bước 3/7: Bác sĩ mở hồ sơ, xem Decision Brief và tóm tắt AI Voice Scribe'
+    };
+  }
+  if(s === 'doctor-examining'){
+    return {
+      targetRole: 'doctor',
+      actionLabel: '4. Bác sĩ: Duyệt bằng chứng & Chốt kế hoạch',
+      btnText: 'Chốt phác đồ ➔',
+      actionFn: 'quickApproveDoctorPlan(); switchRole("nurse"); setRoleTab("teachback");',
+      hint: 'Bước 4/7: Bác sĩ review RECIST 1.1, MDCalc, NCCN và xác nhận tiếp tục Osimertinib 80mg'
+    };
+  }
+  if(s === 'doctor-plan-confirmed' || s === 'nurse-education'){
+    return {
+      targetRole: 'nurse',
+      actionLabel: '5. Điều dưỡng: Hoàn tất Teach-back 10 điểm',
+      btnText: 'Hoàn tất Bàn giao ➔',
+      actionFn: '["identity","emr","allergy","meds","missedDose","toxicity","redflags","teachback","followup","contact"].forEach(k=>state.education[k]=true); completeTeachback(); switchRole("patient"); setRoleTab("today");',
+      hint: 'Bước 5/7: Điều dưỡng hướng dẫn người bệnh dùng thuốc an toàn và in bản A4'
+    };
+  }
+  if(s === 'home-care-active'){
+    return {
+      targetRole: 'patient',
+      actionLabel: '6. Bệnh nhân: Đang theo dõi My Care tại nhà',
+      btnText: 'Xem Hộ chiếu QR 🪪',
+      actionFn: 'setRoleTab("passport");',
+      hint: 'Bước 6/7: Ca khám hoàn tất thành công! Kế hoạch chăm sóc tại nhà đang hoạt động'
+    };
+  }
+  return {
+    targetRole: 'patient',
+    actionLabel: 'Theo dõi điều trị',
+    btnText: 'Xem My Care',
+    actionFn: 'switchRole("patient");',
+    hint: 'Chu trình chăm sóc kết nối'
+  };
+}
+
+function quickApproveDoctorPlan(){
+  // Tự động review các mục để hoàn tất ca khám nhanh
+  ['dose','adherence','toxicity'].forEach(id => state.medicationSafety.reviewed[id] = true);
+  state.decisionBrief.evidenceMap.forEach(x => x.reviewed = true);
+  state.decisionBrief.readiness.dataGapsAcknowledged = true;
+  state.recist.reviewed = true;
+  state.ctcae.reviewed = true;
+  state.safetyLabs.reviewed = true;
+  state.biomarkers.reviewed = true;
+  state.clinicalCalculators.reviewed = true;
+  state.nccnPathways.reviewed = true;
+  state.doctor.decisionReason = 'Bệnh nhân đáp ứng rất tốt (PR -34%), dung nạp ổn định, không có đột biến kháng thuốc. Tiếp tục Osimertinib 80mg đơn trị theo NCCN Category 1.';
+  confirmDecision();
+}
+
+function fastForwardCompleteDemo(){
+  // Chạy lướt nhanh toàn bộ 7 bước demo trong 1 click
+  state = defaultState();
+  state.previsit.submittedAt = new Date().toLocaleString('vi-VN');
+  state.encounterState = 'previsit-submitted';
+  ["idChecked","vitals","allergy","medrec","redflags"].forEach(k=>state.intake[k]=true);
+  state.encounterState = 'doctor-examining';
+  quickApproveDoctorPlan();
+  ["identity","emr","allergy","meds","missedDose","toxicity","redflags","teachback","followup","contact"].forEach(k=>state.education[k]=true);
+  completeTeachback();
+  state.role = 'patient';
+  state.roleTabs.patient = 'today';
+  event('FAST_FORWARD_DEMO_COMPLETED', { detail: 'Đã hoàn tất nhanh toàn bộ 7 bước chu trình khám lâm sàng mẫu' });
+  save();
+  render();
+}
+
+function smartWorkflowCoachBanner(){
+  const next = getSmartNextAction();
+  const fIdx = flowIndex();
+  const progressPct = Math.round(((fIdx + 1) / FLOW.length) * 100);
+
+  return `<section class="smart-coach-banner">
+    <div class="coach-left">
+      <div class="coach-badge-row">
+        <span class="coach-tag">⚡ BƯỚC TIẾP THEO THÔNG MINH</span>
+        <span class="coach-step-count">Tiến trình: <strong>${progressPct}%</strong> (${fIdx + 1}/${FLOW.length} bước)</span>
+      </div>
+      <b>${next.actionLabel}</b>
+      <small>${next.hint}</small>
+    </div>
+    <div class="coach-right">
+      <button class="coach-action-btn" onclick='${next.actionFn}'>${next.btnText}</button>
+      <button class="coach-ff-btn" onclick="fastForwardCompleteDemo()" title="Chạy lướt qua toàn bộ 7 bước để trình diễn nhanh">⚡ 1-Tap Fast Forward</button>
+    </div>
+  </section>`;
+}
 
 function printHandoutTemplate(){
   const p = state.patient;
@@ -677,11 +795,11 @@ function shell(content){
         ${['patient','nurse','doctor'].map(r => `<button class="nav ${state.role===r?'on':''}" onclick="switchRole('${r}')">${{patient:'Bệnh nhân',nurse:'Điều dưỡng',doctor:'Bác sĩ'}[r]}</button>`).join('')}
       </nav>
       <div class="patient-mini"><small>DEMO PATIENT</small><b>${state.patient.name}</b><span>${state.patient.code} · ${state.patient.stage} · ${state.patient.biomarker}</span></div>
-      ${scenarioControls()}
     </aside>
     <main>
       ${topbar(roleMeta)}
       ${alertsStrip()}
+      ${smartWorkflowCoachBanner()}
       ${flowRibbon()}
       ${treatmentJourneyTimeline()}
       ${content}
