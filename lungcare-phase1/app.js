@@ -15,7 +15,11 @@ const defaultState = () => ({
   version: 1,
   role: new URLSearchParams(location.search).get('role') || 'patient',
   encounterState: 'previsit-draft',
-  selectedTab: 'today',
+  roleTabs: {
+    patient: 'today', // 'today' | 'pro' | 'passport' | 'chat'
+    doctor: 'command', // 'command' | 'clinical' | 'safety' | 'genetics'
+    nurse: 'intake' // 'intake' | 'teachback' | 'ddi' | 'vaccine'
+  },
   alertHandled: false,
   alertResolution: { acknowledged:false, assessment:'', action:'', clinicianReason:'', status:'open' },
   patient: {
@@ -463,6 +467,10 @@ function normalize(raw) {
       ...d.accessibility,
       ...(raw.accessibility || {})
     },
+    roleTabs: {
+      ...d.roleTabs,
+      ...(raw.roleTabs || {})
+    },
     prognosisRadar: {
       ...d.prognosisRadar,
       ...(raw.prognosisRadar || {}),
@@ -514,6 +522,12 @@ function set(patch){ state = normalize({ ...state, ...patch }); save(); render()
 function update(path, value){ let s = structuredClone(state); let o = s; path.slice(0,-1).forEach(k => o = o[k]); o[path.at(-1)] = value; set(s); }
 function event(name, payload={}){ state.alerts.unshift({ type:'event', name, at: new Date().toLocaleTimeString('vi-VN'), ...payload }); save(); }
 function advance(next, name){ if(name==='PREVISIT_SUBMITTED' && !state.previsit.submittedAt) state.previsit.submittedAt=new Date().toLocaleString('vi-VN'); state.encounterState = next; if(next==='home-care-active'){state.careLoop.plan.status='active';state.careLoop.plan.activatedAt=new Date().toLocaleString('vi-VN');state.careLoop.plan.provenance='Clinician confirmed + nurse teach-back demo';state.careLoop.tasks.forEach(t=>{if(t.status==='pending')t.status='open'});} event(name); save(); render(); }
+function setRoleTab(tab){
+  state.roleTabs[state.role] = tab;
+  save();
+  render();
+}
+
 function switchRole(role){ state.role = role; save(); history.replaceState(null, '', `?role=${role}`); render(); }
 
 const pct = () => Math.round(state.patient.adherence.taken / state.patient.adherence.total * 100);
@@ -1271,22 +1285,67 @@ function reviewFollowupVaccine(){
   render();
 }
 
+function patientRoleTabBar(){
+  const cur = state.roleTabs.patient || 'today';
+  return `<nav class="role-sub-tabs" aria-label="Menu Bệnh nhân">
+    <button class="sub-tab-btn ${cur==='today'?'active':''}" onclick="setRoleTab('today')">
+      <span class="tab-icon">💊</span>
+      <b>Hôm nay</b>
+    </button>
+    <button class="sub-tab-btn ${cur==='pro'?'active':''}" onclick="setRoleTab('pro')">
+      <span class="tab-icon">📊</span>
+      <b>Nhật ký PRO</b>
+    </button>
+    <button class="sub-tab-btn ${cur==='passport'?'active':''}" onclick="setRoleTab('passport')">
+      <span class="tab-icon">🪪</span>
+      <b>Hộ chiếu QR & Xuất viện</b>
+    </button>
+    <button class="sub-tab-btn ${cur==='chat'?'active':''}" onclick="setRoleTab('chat')">
+      <span class="tab-icon">🤖</span>
+      <b>Trợ lý AI 24/7</b>
+    </button>
+  </nav>`;
+}
+
 function patient(){
   const active = state.encounterState === 'home-care-active';
-  return shell(`${patientSummary()}<div class="grid two">
-    <section class="card hero"><small>TÁI KHÁM HÔM NAY · ${state.patient.followUp}</small><h2>${active ? 'Kế hoạch tại nhà đã kích hoạt' : 'Chuẩn bị trước khám'}</h2><p>${active ? 'Điều dưỡng đã teach-back. Theo dõi thuốc, độc tính và lịch tái khám bắt đầu từ hôm nay.' : 'Khai nhanh thay đổi từ lần trước để điều dưỡng tiếp nhận trước khi bác sĩ khám.'}</p>${!can('previsit-submitted') ? button('Xác nhận lịch & khai nhanh', 'advance("previsit-submitted","PREVISIT_SUBMITTED")', 'primary') : pill('Đã gửi cho điều dưỡng','green')}</section>
-    <section class="card"><small>THUỐC HÔM NAY</small><h3>Osimertinib 80 mg</h3><p>Uống 1 viên mỗi ngày, không nghiền viên. Demo CDS: chú ý tiêu chảy, ban da, khó thở mới.</p><div class="actions">${button(state.home.medicationTakenToday?'Đã ghi nhận uống':'Đánh dấu đã uống','takeMed()','primary')}${button('Báo quên liều','missDose()','outline')}</div><meter min="0" max="42" value="${state.patient.adherence.taken}"></meter><small>${state.patient.adherence.taken}/${state.patient.adherence.total} liều · quên ${state.patient.adherence.missed}</small></section>
-  </div>
-  ${healthPassportCard()}
-  ${patientAiAssistantWidget()}
-  ${patientDailyCheckin()}
-  ${patientRehabSection()}
-  ${followupVaccinePanel()}
-  ${caregiverSyncPanel()}` + `<div class="grid two">
-    <section class="card"><small>KHAI NHANH TÁI KHÁM</small><label>Mục tiêu lần này<input value="${state.previsit.goal}" oninput="update(['previsit','goal'],this.value)" placeholder="Đánh giá đáp ứng, độc tính, cấp thuốc..." /></label><label>Thay đổi từ lần trước<textarea oninput="update(['previsit','changes'],this.value)" placeholder="VD: tiêu chảy 3-4 lần/ngày, ban da nhẹ...">${state.previsit.changes}</textarea></label>${button('Gửi thông tin cho khoa','advance("previsit-submitted","PREVISIT_SUBMITTED")','primary')}</section>
-    <section class="card dangerZone"><small>BÁO TRIỆU CHỨNG</small><h3>Triage độc tính tại nhà</h3><p>Chọn nhanh triệu chứng. Nếu khó thở khi nghỉ/đau ngực/lơ mơ → popup đỏ gửi cả BS và ĐD.</p><div class="symptoms">${['Tiêu chảy','Ban da','Mệt','Sốt','Đau ngực','Khó thở khi nghỉ'].map(s=>button(s, s==='Khó thở khi nghỉ'?'redDyspnea()':'yellowSymptom("'+s+'")', s==='Khó thở khi nghỉ'?'danger':'outline')).join('')}</div></section>
-  </div>
-  ${carePlanCard()}${teachbackPatientReceipt()}${safetyPatientReceipt()}${triagePanel()}${patientVoicePanel()}${decisionReceipt()}${active ? homePlan() : `<section class="empty card"><b>Chưa có kế hoạch tại nhà</b><p>Kế hoạch chỉ kích hoạt sau khi bác sĩ xác nhận và điều dưỡng hoàn tất teach-back.</p></section>`}`);
+  const curTab = state.roleTabs.patient || 'today';
+
+  let tabContent = '';
+  if(curTab === 'today'){
+    tabContent = `
+      <div class="grid two">
+        <section class="card hero"><small>TÁI KHÁM HÔM NAY · ${state.patient.followUp}</small><h2>${active ? 'Kế hoạch tại nhà đã kích hoạt' : 'Chuẩn bị trước khám'}</h2><p>${active ? 'Điều dưỡng đã teach-back. Theo dõi thuốc, độc tính và lịch tái khám bắt đầu từ hôm nay.' : 'Khai nhanh thay đổi từ lần trước để điều dưỡng tiếp nhận trước khi bác sĩ khám.'}</p>${!can('previsit-submitted') ? button('Xác nhận lịch & khai nhanh', 'advance("previsit-submitted","PREVISIT_SUBMITTED")', 'primary') : pill('Đã gửi cho điều dưỡng','green')}</section>
+        <section class="card"><small>THUỐC HÔM NAY</small><h3>Osimertinib 80 mg</h3><p>Uống 1 viên mỗi ngày, không nghiền viên. Chú ý tiêu chảy, ban da, khó thở mới.</p><div class="actions">${button(state.home.medicationTakenToday?'Đã ghi nhận uống':'Đánh dấu đã uống','takeMed()','primary')}${button('Báo quên liều','missDose()','outline')}</div><meter min="0" max="42" value="${state.patient.adherence.taken}"></meter><small>${state.patient.adherence.taken}/${state.patient.adherence.total} liều · quên ${state.patient.adherence.missed}</small></section>
+      </div>
+      ${patientRehabSection()}
+      <div class="grid two">
+        <section class="card"><small>KHAI NHANH TÁI KHÁM</small><label>Mục tiêu lần này<input value="${state.previsit.goal}" oninput="update(['previsit','goal'],this.value)" placeholder="Đánh giá đáp ứng, độc tính, cấp thuốc..." /></label><label>Thay đổi từ lần trước<textarea oninput="update(['previsit','changes'],this.value)" placeholder="VD: tiêu chảy 3-4 lần/ngày, ban da nhẹ...">${state.previsit.changes}</textarea></label>${button('Gửi thông tin cho khoa','advance("previsit-submitted","PREVISIT_SUBMITTED")','primary')}</section>
+        <section class="card dangerZone"><small>BÁO TRIỆU CHỨNG</small><h3>Triage độc tính tại nhà</h3><p>Chọn nhanh triệu chứng. Nếu khó thở khi nghỉ/đau ngực/lơ mơ -> popup đỏ gửi cả BS và ĐD.</p><div class="symptoms">${['Tiêu chảy','Ban da','Mệt','Sốt','Đau ngực','Khó thở khi nghỉ'].map(s=>button(s, s==='Khó thở khi nghỉ'?'redDyspnea()':'yellowSymptom("'+s+'")', s==='Khó thở khi nghỉ'?'danger':'outline')).join('')}</div></section>
+      </div>
+      ${carePlanCard()}${triagePanel()}${patientVoicePanel()}${active ? homePlan() : `<section class="empty card"><b>Chưa có kế hoạch tại nhà</b><p>Kế hoạch chỉ kích hoạt sau khi bác sĩ xác nhận và điều dưỡng hoàn tất teach-back.</p></section>`}
+    `;
+  } else if(curTab === 'pro'){
+    tabContent = `
+      ${patientDailyCheckin()}
+      ${caregiverSyncPanel()}
+    `;
+  } else if(curTab === 'passport'){
+    tabContent = `
+      ${healthPassportCard()}
+      ${teachbackPatientReceipt()}
+      ${followupVaccinePanel()}
+      ${safetyPatientReceipt()}
+      ${decisionReceipt()}
+    `;
+  } else if(curTab === 'chat'){
+    tabContent = `
+      ${patientAiAssistantWidget()}
+      ${caregiverSyncPanel()}
+    `;
+  }
+
+  return shell(`${patientSummary()}${patientRoleTabBar()}${tabContent}`);
 }
 
 function teachbackPatientReceipt(){
@@ -1465,7 +1524,61 @@ function reviewDdi(){
   render();
 }
 
-function nurse(){ return shell(`${patientSummary()}${ddiCheckerPanel()}${safetyQueue()}${careTaskQueue()}${triageInbox()}${triageHandoff()}${decisionReceipt()}<div class="grid two"><section class="card"><small>TIẾP NHẬN ĐIỀU DƯỠNG</small><h2>${can('previsit-submitted')?'Có bệnh nhân đã gửi khai nhanh':'Chờ bệnh nhân gửi khai nhanh'}</h2><p>Định danh, sinh hiệu, dị ứng, thuốc đang dùng và dấu hiệu báo động.</p>${checklist('intake', ['idChecked|Đối chiếu họ tên · ngày sinh · mã BN','vitals|Nhập sinh hiệu · SpO₂ · đau · cân nặng','allergy|Xác minh dị ứng','medrec|Medication reconciliation','redflags|Xác minh dấu hiệu báo động'])}<label>Ghi chú voice/nhập tay<textarea oninput="update(['intake','note'],this.value)">${state.intake.note}</textarea></label>${doneCount(state.intake)>=5 ? button('Hoàn tất tiếp nhận → gửi bác sĩ','advance("ready-for-doctor","NURSE_INTAKE_COMPLETED")','primary') : button('Cần đủ checklist để hoàn tất','void(0)','disabled')}</section><section class="card"><small>SAU KHI BÁC SĨ CHỐT KẾ HOẠCH</small><h2>${can('doctor-plan-confirmed')?'Kế hoạch đã chuyển từ bác sĩ':'Chưa có kế hoạch điều trị'}</h2><p>Điều dưỡng chỉ nhận các việc cần phối hợp từ quyết định đã xác nhận — không nhận toàn bộ bệnh án và không tự sinh y lệnh.</p>${can('doctor-plan-confirmed') ? handoffCards('nurse') + teachback() : '<div class="empty">Handoff cards sẽ xuất hiện sau khi BS xác nhận quyết định.</div>'}</section></div>${activityLog()}`); }
+function nurseRoleTabBar(){
+  const cur = state.roleTabs.nurse || 'intake';
+  return `<nav class="role-sub-tabs" aria-label="Menu Điều dưỡng">
+    <button class="sub-tab-btn ${cur==='intake'?'active':''}" onclick="setRoleTab('intake')">
+      <span class="tab-icon">📥</span>
+      <b>Tiếp nhận</b>
+    </button>
+    <button class="sub-tab-btn ${cur==='teachback'?'active':''}" onclick="setRoleTab('teachback')">
+      <span class="tab-icon">🎓</span>
+      <b>Teach-back 10đ</b>
+    </button>
+    <button class="sub-tab-btn ${cur==='ddi'?'active':''}" onclick="setRoleTab('ddi')">
+      <span class="tab-icon">💊</span>
+      <b>Dược thư DDI</b>
+    </button>
+    <button class="sub-tab-btn ${cur==='vaccine'?'active':''}" onclick="setRoleTab('vaccine')">
+      <span class="tab-icon">💉</span>
+      <b>Tiêm chủng & BHYT</b>
+    </button>
+  </nav>`;
+}
+
+function nurse(){
+  const curTab = state.roleTabs.nurse || 'intake';
+
+  let tabContent = '';
+  if(curTab === 'intake'){
+    tabContent = `
+      <div class="grid two">
+        <section class="card"><small>TIẾP NHẬN ĐIỀU DƯỠNG</small><h2>${can('previsit-submitted')?'Có bệnh nhân đã gửi khai nhanh':'Chờ bệnh nhân gửi khai nhanh'}</h2><p>Định danh, sinh hiệu, dị ứng, thuốc đang dùng và dấu hiệu báo động.</p>${checklist('intake', ['idChecked|Đối chiếu họ tên · ngày sinh · mã BN','vitals|Nhập sinh hiệu · SpO₂ · đau · cân nặng','allergy|Xác minh dị ứng','medrec|Medication reconciliation','redflags|Xác minh dấu hiệu báo động'])}<label>Ghi chú voice/nhập tay<textarea oninput="update(['intake','note'],this.value)">${state.intake.note}</textarea></label>${doneCount(state.intake)>=5 ? button('Hoàn tất tiếp nhận → gửi bác sĩ','advance("ready-for-doctor","NURSE_INTAKE_COMPLETED")','primary') : button('Cần đủ checklist để hoàn tất','void(0)','disabled')}</section>
+        <section class="card"><small>MY CARE TASK QUEUE</small><h2>Nhiệm vụ phối hợp ca khám</h2><p>Theo dõi trạng thái các đầu việc điều phối giữa Bác sĩ và Điều dưỡng.</p>${careTaskQueue()}</section>
+      </div>
+      ${safetyQueue()}
+      ${triageInbox()}
+      ${triageHandoff()}
+    `;
+  } else if(curTab === 'teachback'){
+    tabContent = `
+      <section class="card"><small>BÀN GIAO & GIÁO DỤC SỨC KHỎE</small><h2>${can('doctor-plan-confirmed')?'Kế hoạch đã chuyển từ bác sĩ':'Chưa có kế hoạch điều trị'}</h2><p>Điều dưỡng chỉ nhận các việc cần phối hợp từ quyết định đã xác nhận — không nhận toàn bộ bệnh án và không tự sinh y lệnh.</p>${can('doctor-plan-confirmed') ? handoffCards('nurse') + teachback() : '<div class="empty">Handoff cards và Teach-back sẽ xuất hiện sau khi BS xác nhận quyết định.</div>'}</section>
+      ${decisionReceipt()}
+    `;
+  } else if(curTab === 'ddi'){
+    tabContent = `
+      ${ddiCheckerPanel()}
+    `;
+  } else if(curTab === 'vaccine'){
+    tabContent = `
+      ${followupVaccinePanel()}
+      ${workloadAllocationPanel()}
+      ${caregiverSyncPanel()}
+    `;
+  }
+
+  return shell(`${patientSummary()}${nurseRoleTabBar()}${tabContent}${activityLog()}`);
+}
 function completeTeachback(){
   if(doneCount(state.education) < 10) return;
   state.education.completedAt = new Date().toLocaleString('vi-VN');
@@ -2382,7 +2495,73 @@ function reviewGeneticPedigree(){
   render();
 }
 
-function doctor(){ return shell(`${patientSummary()}${medicationSafetyBrief()}${geneticPedigreePanel()}${healthPassportCard()}${prognosisRadarPanel()}${workloadAllocationPanel()}${voiceScribePanel()}${nccnPathwayViewer()}${clinicalCalculatorsPanel()}${ddiCheckerPanel()}${safetyLabsPanel()}${biomarkerEvolutionPanel()}${proTrendDashboard()}${recistAssessmentBrief()}${ctcaeToxicityGuide()}${rehabAssessmentPanel()}${mdtConsultationPanel()}${safetyQueue()}${doctorCareSnapshot()}${escalationReview()}${triageHandoff()}${doctorPatientVoice()}<div class="decision-layout"><section class="card"><small>DECISION BRIEF · TUẦN 6</small><h2>Tiếp tục điều trị hay cần đánh giá thêm?</h2><p class="lead">Bản tóm tắt cho một quyết định — không phải bệnh án. Mọi gợi ý cần bác sĩ xác nhận.</p>${patientVoice()}<div class="decision-lens"><small>DECISION LENS · FRAMING MÔ PHỎNG</small><h3>Câu hỏi lần khám</h3><b>Có thể tiếp tục liều hiện tại trong khi hoàn thiện dữ liệu an toàn và đáp ứng không?</b><div class="lens-grid"><div><small>Tín hiệu ủng hộ</small><p>Tuân thủ tốt · molecular phù hợp · độc tính demo G1–2</p></div><div><small>Next-best-information</small><p>CT tuần 8 · ECG/QTc · điện giải · xác minh toxicity trực tiếp</p></div></div><h3>Điểm bất định cần ghi nhận</h3>${uncertainties()}</div><div class="brief-columns"><div><h3>Dữ kiện mô phỏng</h3>${briefFacts(state.decisionBrief.facts,'fact')}</div><div><h3>Người bệnh báo cáo</h3>${briefFacts(state.decisionBrief.patientReported,'reported')}</div></div><h3>Evidence map · bấm từng mục để xác nhận đã review</h3>${evidenceMap()}${readinessPanel()}<h3>Safety gates</h3><div class="gates">${state.decisionBrief.safetyGates.map(g=>`<div class="gate ${g.status}"><span>${g.status==='ready'||g.status==='clear'?'✓':'!'}</span><div><b>${g.label}</b><small>${g.detail}</small></div></div>`).join('')}</div></section><section class="card"><small>CDS OPTIONS · KHÔNG PHẢI Y LỆNH</small><h2>Các hướng xử trí để bác sĩ cân nhắc</h2>${decisionOptions()}<label>Lý do quyết định / lý do từ chối gợi ý<textarea oninput="update(['doctor','decisionReason'],this.value)" placeholder="Bắt buộc ghi lý do trước khi xác nhận">${state.doctor.decisionReason}</textarea></label><div class="actions">${can('ready-for-doctor') ? button('Nhận ca','advance("doctor-examining","DOCTOR_ACCEPTED_CASE")','outline') : button('Chờ ĐD hoàn tất tiếp nhận','void(0)','disabled')}${hasUnresolvedRed() ? button('Đang có cảnh báo đỏ · phải xử trí trước','void(0)','disabled') : !decisionReady() ? button('Review evidence + xác nhận data gap trước','void(0)','disabled') : can('doctor-examining') && state.doctor.decisionReason.trim() ? button('Xác nhận quyết định · tạo handoff','confirmDecision()','primary') : button('Cần nhận ca + ghi lý do','void(0)','disabled')}</div></section><aside class="sticky"><section class="card evidence"><small>NGUỒN & PHIÊN BẢN</small><h3>${state.decisionBrief.evidence.title}</h3><p>${state.decisionBrief.evidence.version}</p><div class="warning">${state.decisionBrief.evidence.note}</div><hr><b>Dữ liệu còn thiếu</b><ul>${state.decisionBrief.safetyGates.filter(g=>g.status==='missing').map(g=>`<li>${g.label}</li>`).join('')}</ul></section></aside></div>${activityLog()}`); }
+function doctorRoleTabBar(){
+  const cur = state.roleTabs.doctor || 'command';
+  return `<nav class="role-sub-tabs" aria-label="Menu Bác sĩ">
+    <button class="sub-tab-btn ${cur==='command'?'active':''}" onclick="setRoleTab('command')">
+      <span class="tab-icon">📋</span>
+      <b>Lệnh khám & SOAP</b>
+    </button>
+    <button class="sub-tab-btn ${cur==='clinical'?'active':''}" onclick="setRoleTab('clinical')">
+      <span class="tab-icon">🩺</span>
+      <b>Lâm sàng & NCCN</b>
+    </button>
+    <button class="sub-tab-btn ${cur==='safety'?'active':''}" onclick="setRoleTab('safety')">
+      <span class="tab-icon">🧪</span>
+      <b>MDCalc & Thuốc</b>
+    </button>
+    <button class="sub-tab-btn ${cur==='genetics'?'active':''}" onclick="setRoleTab('genetics')">
+      <span class="tab-icon">🧬</span>
+      <b>Gen & Tiên lượng</b>
+    </button>
+  </nav>`;
+}
+
+function doctor(){
+  const curTab = state.roleTabs.doctor || 'command';
+
+  let tabContent = '';
+  if(curTab === 'command'){
+    tabContent = `
+      ${voiceScribePanel()}
+      <div class="decision-layout">
+        <section class="card"><small>DECISION BRIEF · TUẦN 6</small><h2>Tiếp tục điều trị hay cần đánh giá thêm?</h2><p class="lead">Bản tóm tắt cho một quyết định — không phải bệnh án. Mọi gợi ý cần bác sĩ xác nhận.</p>${patientVoice()}<div class="decision-lens"><small>DECISION LENS · FRAMING MÔ PHỎNG</small><h3>Câu hỏi lần khám</h3><b>Có thể tiếp tục liều hiện tại trong khi hoàn thiện dữ liệu an toàn và đáp ứng không?</b><div class="lens-grid"><div><small>Tín hiệu ủng hộ</small><p>Tuân thủ tốt · molecular phù hợp · độc tính demo G1–2</p></div><div><small>Next-best-information</small><p>CT tuần 8 · ECG/QTc · điện giải · xác minh toxicity trực tiếp</p></div></div><h3>Điểm bất định cần ghi nhận</h3>${uncertainties()}</div><div class="brief-columns"><div><h3>Dữ kiện mô phỏng</h3>${briefFacts(state.decisionBrief.facts,'fact')}</div><div><h3>Người bệnh báo cáo</h3>${briefFacts(state.decisionBrief.patientReported,'reported')}</div></div><h3>Evidence map · bấm từng mục để xác nhận đã review</h3>${evidenceMap()}${readinessPanel()}<h3>Safety gates</h3><div class="gates">${state.decisionBrief.safetyGates.map(g=>`<div class="gate ${g.status}"><span>${g.status==='ready'||g.status==='clear'?'✓':'!'}</span><div><b>${g.label}</b><small>${g.detail}</small></div></div>`).join('')}</div></section>
+        <section class="card"><small>CDS OPTIONS · KHÔNG PHẢI Y LỆNH</small><h2>Các hướng xử trí để bác sĩ cân nhắc</h2>${decisionOptions()}<label>Lý do quyết định / lý do từ chối gợi ý<textarea oninput="update(['doctor','decisionReason'],this.value)" placeholder="Bắt buộc ghi lý do trước khi xác nhận">${state.doctor.decisionReason}</textarea></label><div class="actions">${can('ready-for-doctor') ? button('Nhận ca','advance("doctor-examining","DOCTOR_ACCEPTED_CASE")','outline') : button('Chờ ĐD hoàn tất tiếp nhận','void(0)','disabled')}${hasUnresolvedRed() ? button('Đang có cảnh báo đỏ · phải xử trí trước','void(0)','disabled') : !decisionReady() ? button('Review evidence + xác nhận data gap trước','void(0)','disabled') : can('doctor-examining') && state.doctor.decisionReason.trim() ? button('Xác nhận quyết định · tạo handoff','confirmDecision()','primary') : button('Cần nhận ca + ghi lý do','void(0)','disabled')}</div></section>
+        <aside class="sticky"><section class="card evidence"><small>NGUỒN & PHIÊN BẢN</small><h3>${state.decisionBrief.evidence.title}</h3><p>${state.decisionBrief.evidence.version}</p><div class="warning">${state.decisionBrief.evidence.note}</div><hr><b>Dữ liệu còn thiếu</b><ul>${state.decisionBrief.safetyGates.filter(g=>g.status==='missing').map(g=>`<li>${g.label}</li>`).join('')}</ul></section></aside>
+      </div>
+      ${workloadAllocationPanel()}
+      ${activityLog()}
+    `;
+  } else if(curTab === 'clinical'){
+    tabContent = `
+      ${nccnPathwayViewer()}
+      ${recistAssessmentBrief()}
+      ${ctcaeToxicityGuide()}
+      ${mdtConsultationPanel()}
+      ${doctorCareSnapshot()}
+      ${escalationReview()}
+      ${triageHandoff()}
+    `;
+  } else if(curTab === 'safety'){
+    tabContent = `
+      ${clinicalCalculatorsPanel()}
+      ${medicationSafetyBrief()}
+      ${ddiCheckerPanel()}
+      ${safetyLabsPanel()}
+      ${safetyQueue()}
+    `;
+  } else if(curTab === 'genetics'){
+    tabContent = `
+      ${biomarkerEvolutionPanel()}
+      ${geneticPedigreePanel()}
+      ${prognosisRadarPanel()}
+      ${healthPassportCard()}
+      ${proTrendDashboard()}
+    `;
+  }
+
+  return shell(`${patientSummary()}${doctorRoleTabBar()}${tabContent}`);
+}
 function patientVoice(){ const p=state.previsit; const submitted=state.encounterState!=='previsit-draft'||p.submittedAt; return `<div class="patient-voice ${submitted?'submitted':''}"><div><small>PATIENT VOICE · NGUỒN NGƯỜI BỆNH TỰ BÁO CÁO</small><h3>${submitted?'Thông tin trước khám đã gửi':'Chưa có khai nhanh từ người bệnh'}</h3>${submitted?`<p><b>Mục tiêu:</b> ${p.goal||'Chưa nhập'}</p><p><b>Thay đổi:</b> ${p.changes||'Chưa nhập'}</p><small>Gửi lúc ${p.submittedAt||'không rõ'} · Không tự động xem là dữ kiện đã xác minh</small>`:'<p>Điều dưỡng/bác sĩ chưa nhận được patient voice. Đây là empty state, không phải lỗi hồ sơ.</p>'}</div><div>${submitted&&!p.doctorRead?button('Đánh dấu đã đọc','markPatientVoiceRead()','outline'):submitted?pill('BS đã đọc · patient-reported','green'):pill('Chờ người bệnh gửi')}</div></div>`; }
 function markPatientVoiceRead(){ state.previsit.doctorRead=true; event('PATIENT_VOICE_READ',{detail:'Bác sĩ đã đọc thông tin patient-reported trước khám'}); save(); render(); }
 function doctorPatientVoice(){ const v=state.patientVoice; if(v.status!=='submitted') return `<section class="card voice-empty"><small>PATIENT VOICE</small><b>Chưa có khai voice từ người bệnh</b><p>Đây là khoảng trống thông tin, không phải dữ liệu âm tính.</p></section>`; return `<section class="card patient-voice"><div><small>PATIENT VOICE · CHƯA XÁC MINH</small><h3>Người bệnh đã gửi bản nháp</h3><p>${v.transcript}</p><small>${v.capturedAt} · nguồn: người bệnh</small></div><button onclick="markVoiceRead()" class="${v.readByDoctor?'outline':'primary'}">${v.readByDoctor?'Đã đọc':'Đánh dấu đã đọc'}</button></section>`; }
