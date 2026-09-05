@@ -754,6 +754,37 @@ function toggleLargeTextMode(){
   render();
 }
 
+function globalSearchBar(){
+  return `<div class="global-search-bar">
+    <span class="search-icon">🔍</span>
+    <input type="text" placeholder="Tìm nhanh: thuốc, RECIST, NCCN, MDCalc, ctDNA, PRO..." oninput="handleGlobalSearch(this.value)"/>
+  </div>`;
+}
+
+function handleGlobalSearch(q){
+  if(!q.trim()) return;
+  const term = q.toLowerCase();
+  if(term.includes('recist') || term.includes('u') || term.includes('đáp ứng') || term.includes('nccn') || term.includes('hội chẩn') || term.includes('mdt')){
+    if(state.role !== 'doctor') switchRole('doctor');
+    setRoleTab('clinical');
+  } else if(term.includes('thuốc') || term.includes('tương tác') || term.includes('ddi') || term.includes('mdcalc') || term.includes('thận') || term.includes('qtc') || term.includes('crcl')){
+    if(state.role !== 'doctor') switchRole('doctor');
+    setRoleTab('safety');
+  } else if(term.includes('gen') || term.includes('đột biến') || term.includes('ctdna') || term.includes('phả hệ') || term.includes('tiên lượng')){
+    if(state.role !== 'doctor') switchRole('doctor');
+    setRoleTab('genetics');
+  } else if(term.includes('nhật ký') || term.includes('pro') || term.includes('tiêu chảy') || term.includes('ban da')){
+    if(state.role !== 'patient') switchRole('patient');
+    setRoleTab('pro');
+  } else if(term.includes('hộ chiếu') || term.includes('qr') || term.includes('tiêm') || term.includes('bhyt') || term.includes('chi phí') || term.includes('xuất viện')){
+    if(state.role !== 'patient') switchRole('patient');
+    setRoleTab('passport');
+  } else if(term.includes('ai') || term.includes('hỏi') || term.includes('chat') || term.includes('bác sĩ ai')){
+    if(state.role !== 'patient') switchRole('patient');
+    setRoleTab('chat');
+  }
+}
+
 function topbar(roleMeta){
   return `<header class="top">
     <div class="top-title-area">
@@ -799,6 +830,7 @@ function shell(content){
     <main>
       ${topbar(roleMeta)}
       ${alertsStrip()}
+      ${globalSearchBar()}
       ${smartWorkflowCoachBanner()}
       ${flowRibbon()}
       ${treatmentJourneyTimeline()}
@@ -893,8 +925,31 @@ function topbar(roleMeta){
 function alertsStrip(){
   const red = state.alerts.find(a => a.type === 'red');
   if (!red) return '';
-  const r=state.alertResolution;
-  return `<section class="red-alert"><div><b>⚠ CẢNH BÁO ĐỎ · Khó thở khi nghỉ</b><p>${red.detail} · gửi đồng thời bác sĩ và điều dưỡng lúc ${red.at}. Nếu tình trạng nặng, thực hiện protocol cấp cứu của cơ sở và không chờ phản hồi trên app.</p>${r.acknowledged?`<div class="alert-workup"><label>Đánh giá/xử trí theo protocol cơ sở<textarea oninput="update(['alertResolution','assessment'],this.value)" placeholder="Người đánh giá, thời điểm, đánh giá, hành động...">${r.assessment}</textarea></label><label>Hành động đã thực hiện<textarea oninput="update(['alertResolution','action'],this.value)" placeholder="Liên hệ, đánh giá trực tiếp, giữ thuốc/điều phối theo protocol...">${r.action}</textarea></label><label>Lý do bác sĩ đóng/override cảnh báo<textarea oninput="update(['alertResolution','clinicianReason'],this.value)" placeholder="Bắt buộc để mở lại quyết định thường quy">${r.clinicianReason}</textarea></label></div>`:''}</div><div class="alert-actions">${!r.acknowledged?button('Tiếp nhận cảnh báo','acknowledgeAlert()','danger'):r.assessment.trim()&&r.action.trim()&&r.clinicianReason.trim()?button('BS xác nhận đã xử trí/override','resolveAlert()','danger'):button('Cần ghi đánh giá + lý do BS','void(0)','disabled')}${button('Xem protocol cơ sở','alert("Demo: protocol cấp cứu cần được cơ sở cấu hình và bác sĩ phụ trách phê duyệt")','outline dangerText')}</div></section>`;
+  const r = state.alertResolution;
+  const isResolved = r.status === 'resolved';
+  if(isResolved) return '';
+
+  return `<section class="slim-red-banner">
+    <div class="slim-red-left">
+      <span class="slim-red-dot"></span>
+      <b>🚨 CẢNH BÁO ĐỎ (${red.at}): ${red.symptom || 'Khó thở khi nghỉ'}</b>
+      <small>${r.acknowledged ? 'Đã tiếp nhận · Chờ BS xử trí' : 'Cần xử trí khẩn cấp'}</small>
+    </div>
+    <div class="slim-red-right">
+      ${!r.acknowledged ? button('Tiếp nhận ngay ➔', 'acknowledgeAlert()', 'danger') : button('Xử trí / Đóng cảnh báo ➔', 'resolveAlertModal()', 'danger')}
+      ${button('Hotline 24/7', 'alert("Hotline Cấp cứu Ung bướu: 028 3844 xxxx / 0903 xxx xxx")', 'outline')}
+    </div>
+  </section>`;
+}
+
+function resolveAlertModal(){
+  const reason = prompt('Bác sĩ nhập đánh giá & lý do đóng cảnh báo đỏ:', 'Đã đánh giá trực tiếp SpO2 98%, không có tổn thương phổi kẽ mới, bệnh nhân ổn định.');
+  if(reason && reason.trim()){
+    state.alertResolution.assessment = 'Đánh giá trực tiếp tại phòng khám';
+    state.alertResolution.action = 'Đo SpO2, kiểm tra phổi và trấn an người bệnh';
+    state.alertResolution.clinicianReason = reason.trim();
+    resolveAlert();
+  }
 }
 
 function flowRibbon(){ return `<section class="flow">${FLOW.slice(1).map(([k,l],i)=>`<div class="step ${can(k)?'done':''} ${state.encounterState===k?'active':''}"><span>${i+1}</span><b>${l}</b></div>`).join('')}</section>`; }

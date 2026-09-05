@@ -277,8 +277,14 @@ check(run("state.encounterState") === 'home-care-active', 'fast forward complete
 check(run("state.careLoop.plan.status") === 'active', 'care plan active after fast forward');
 check(run("state.role") === 'patient', 'role returns to patient after fast forward');
 
+// Global Search & Slim Red Alert assertions
+run("handleGlobalSearch('recist')");
+check(run("state.role") === 'doctor' && run("state.roleTabs.doctor") === 'clinical', 'search jumps to clinical tab');
+run("handleGlobalSearch('nhật ký')");
+check(run("state.role") === 'patient' && run("state.roleTabs.patient") === 'pro', 'search jumps to pro tab');
+
 console.log('LungCare smoke test: PASS');
-console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate, recist 1.1, ctcae v5.0, teach-back 10-point, mdt workflow, pro diary, soap summary, safety labs, biomarkers, ddi checker, rehab nutrition, caregiver sync, treatment journey, clinical calculators, nccn pathways, voice scribe, health passport, workload allocation, accessibility pwa, mskcc prognosis, ai patient assistant, vaccine cost tracker, genetic pedigree, ddi search, fhir bundle export, role sub-tabs mobile, smart coach & fast forward');
+console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate, recist 1.1, ctcae v5.0, teach-back 10-point, mdt workflow, pro diary, soap summary, safety labs, biomarkers, ddi checker, rehab nutrition, caregiver sync, treatment journey, clinical calculators, nccn pathways, voice scribe, health passport, workload allocation, accessibility pwa, mskcc prognosis, ai patient assistant, vaccine cost tracker, genetic pedigree, ddi search, fhir bundle export, role sub-tabs mobile, smart coach, slim red alert & search');
 
 function stateValue(key) {
   return run(`Boolean(state.safetyRequests[0] && state.safetyRequests[0].${key})`);
