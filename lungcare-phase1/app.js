@@ -16,9 +16,16 @@ const defaultState = () => ({
   role: new URLSearchParams(location.search).get('role') || 'patient',
   encounterState: 'previsit-draft',
   roleTabs: {
-    patient: 'today', // 'today' | 'pro' | 'passport' | 'chat'
-    doctor: 'command', // 'command' | 'clinical' | 'safety' | 'genetics'
-    nurse: 'intake' // 'intake' | 'teachback' | 'ddi' | 'vaccine'
+    patient: 'today', // 'today' | 'health' | 'treatment' | 'support' | 'profile'
+    doctor: 'overview', // 'overview' | 'patients' | 'tasks' | 'more'
+    nurse: 'today' // 'today' | 'tasks' | 'patients' | 'more'
+  },
+  drillDown: {
+    patientTreatmentSection: null, // 'meds' | 'schedule' | 'results' | 'rehab' | 'handout'
+    patientHealthSection: null, // 'diary' | 'triage' | 'trend'
+    doctorPatientSection: null, // 'summary' | 'recist' | 'ctcae' | 'nccn' | 'mdt' | 'genetics' | 'ddi' | 'calculators' | 'passport'
+    doctorCommandQuery: '',
+    nurseSection: null
   },
   alertHandled: false,
   alertResolution: { acknowledged:false, assessment:'', action:'', clinicianReason:'', status:'open' },
@@ -471,6 +478,10 @@ function normalize(raw) {
       ...d.roleTabs,
       ...(raw.roleTabs || {})
     },
+    drillDown: {
+      ...d.drillDown,
+      ...(raw.drillDown || {})
+    },
     prognosisRadar: {
       ...d.prognosisRadar,
       ...(raw.prognosisRadar || {}),
@@ -766,22 +777,25 @@ function handleGlobalSearch(q){
   const term = q.toLowerCase();
   if(term.includes('recist') || term.includes('u') || term.includes('đáp ứng') || term.includes('nccn') || term.includes('hội chẩn') || term.includes('mdt')){
     if(state.role !== 'doctor') switchRole('doctor');
-    setRoleTab('clinical');
+    setRoleTab('patients');
+    setDrillDown('doctorPatientSection', term.includes('recist')?'recist':term.includes('nccn')?'nccn':term.includes('mdt')?'mdt':'summary');
   } else if(term.includes('thuốc') || term.includes('tương tác') || term.includes('ddi') || term.includes('mdcalc') || term.includes('thận') || term.includes('qtc') || term.includes('crcl')){
     if(state.role !== 'doctor') switchRole('doctor');
-    setRoleTab('safety');
+    setRoleTab('more');
   } else if(term.includes('gen') || term.includes('đột biến') || term.includes('ctdna') || term.includes('phả hệ') || term.includes('tiên lượng')){
     if(state.role !== 'doctor') switchRole('doctor');
-    setRoleTab('genetics');
+    setRoleTab('patients');
+    setDrillDown('doctorPatientSection', 'genetics');
   } else if(term.includes('nhật ký') || term.includes('pro') || term.includes('tiêu chảy') || term.includes('ban da')){
     if(state.role !== 'patient') switchRole('patient');
-    setRoleTab('pro');
+    setRoleTab('health');
+    setDrillDown('patientHealthSection', 'diary');
   } else if(term.includes('hộ chiếu') || term.includes('qr') || term.includes('tiêm') || term.includes('bhyt') || term.includes('chi phí') || term.includes('xuất viện')){
     if(state.role !== 'patient') switchRole('patient');
-    setRoleTab('passport');
+    setRoleTab('profile');
   } else if(term.includes('ai') || term.includes('hỏi') || term.includes('chat') || term.includes('bác sĩ ai')){
     if(state.role !== 'patient') switchRole('patient');
-    setRoleTab('chat');
+    setRoleTab('support');
   }
 }
 
@@ -1458,67 +1472,315 @@ function reviewFollowupVaccine(){
   render();
 }
 
-function patientRoleTabBar(){
+function setDrillDown(sectionKey, val){
+  state.drillDown[sectionKey] = val;
+  save();
+  render();
+}
+
+function patientBottomNav(){
   const cur = state.roleTabs.patient || 'today';
-  return `<nav class="role-sub-tabs" aria-label="Menu Bệnh nhân">
-    <button class="sub-tab-btn ${cur==='today'?'active':''}" onclick="setRoleTab('today')">
-      <span class="tab-icon">💊</span>
-      <b>Hôm nay</b>
+  return `<nav class="mobile-bottom-nav patient-nav" aria-label="Điều hướng Bệnh nhân">
+    <button class="mobile-nav-item ${cur==='today'?'active':''}" onclick="setRoleTab('today')">
+      <span class="nav-ico">🏠</span>
+      <small>Hôm nay</small>
     </button>
-    <button class="sub-tab-btn ${cur==='pro'?'active':''}" onclick="setRoleTab('pro')">
-      <span class="tab-icon">📊</span>
-      <b>Nhật ký PRO</b>
+    <button class="mobile-nav-item ${cur==='health'?'active':''}" onclick="setRoleTab('health')">
+      <span class="nav-ico">❤️</span>
+      <small>Sức khỏe</small>
     </button>
-    <button class="sub-tab-btn ${cur==='passport'?'active':''}" onclick="setRoleTab('passport')">
-      <span class="tab-icon">🪪</span>
-      <b>Hộ chiếu QR & Xuất viện</b>
+    <button class="mobile-nav-item ${cur==='treatment'?'active':''}" onclick="setRoleTab('treatment')">
+      <span class="nav-ico">💊</span>
+      <small>Điều trị</small>
     </button>
-    <button class="sub-tab-btn ${cur==='chat'?'active':''}" onclick="setRoleTab('chat')">
-      <span class="tab-icon">🤖</span>
-      <b>Trợ lý AI 24/7</b>
+    <button class="mobile-nav-item ${cur==='support'?'active':''}" onclick="setRoleTab('support')">
+      <span class="nav-ico">🤝</span>
+      <small>Hỗ trợ</small>
+    </button>
+    <button class="mobile-nav-item ${cur==='profile'?'active':''}" onclick="setRoleTab('profile')">
+      <span class="nav-ico">👤</span>
+      <small>Tôi</small>
     </button>
   </nav>`;
 }
 
-function patient(){
+function patientHomeClean(){
   const active = state.encounterState === 'home-care-active';
-  const curTab = state.roleTabs.patient || 'today';
+  return `
+    <div class="patient-home-container">
+      <!-- 1. Lời chào & Ngày -->
+      <div class="patient-greeting-card">
+        <div>
+          <small>HÔM NAY · ${new Date().toLocaleDateString('vi-VN', {weekday:'long', day:'2-digit', month:'2-digit'})}</small>
+          <h2>Chào chú Minh 👋</h2>
+          <p>${active ? 'Kế hoạch uống thuốc & chăm sóc tại nhà đang hoạt động tốt.' : 'Chú có lịch hẹn tái khám định kỳ vào sáng nay.'}</p>
+        </div>
+      </div>
 
-  let tabContent = '';
-  if(curTab === 'today'){
-    tabContent = `
-      <div class="grid two">
-        <section class="card hero"><small>TÁI KHÁM HÔM NAY · ${state.patient.followUp}</small><h2>${active ? 'Kế hoạch tại nhà đã kích hoạt' : 'Chuẩn bị trước khám'}</h2><p>${active ? 'Điều dưỡng đã teach-back. Theo dõi thuốc, độc tính và lịch tái khám bắt đầu từ hôm nay.' : 'Khai nhanh thay đổi từ lần trước để điều dưỡng tiếp nhận trước khi bác sĩ khám.'}</p>${!can('previsit-submitted') ? button('Xác nhận lịch & khai nhanh', 'advance("previsit-submitted","PREVISIT_SUBMITTED")', 'primary') : pill('Đã gửi cho điều dưỡng','green')}</section>
-        <section class="card"><small>THUỐC HÔM NAY</small><h3>Osimertinib 80 mg</h3><p>Uống 1 viên mỗi ngày, không nghiền viên. Chú ý tiêu chảy, ban da, khó thở mới.</p><div class="actions">${button(state.home.medicationTakenToday?'Đã ghi nhận uống':'Đánh dấu đã uống','takeMed()','primary')}${button('Báo quên liều','missDose()','outline')}</div><meter min="0" max="42" value="${state.patient.adherence.taken}"></meter><small>${state.patient.adherence.taken}/${state.patient.adherence.total} liều · quên ${state.patient.adherence.missed}</small></section>
+      <!-- 2. Thuốc cần uống hôm nay (Hero Card) -->
+      <div class="card patient-med-hero">
+        <div class="med-hero-top">
+          <div>
+            <span class="badge-tag">💊 THUỐC HÔM NAY</span>
+            <h3>Osimertinib 80 mg</h3>
+            <p>1 viên lúc 08:00 sáng (uống nguyên viên với nước)</p>
+          </div>
+          <div class="med-hero-action">
+            ${state.home.medicationTakenToday ? 
+              pill('✓ ĐÃ UỐNG HÔM NAY', 'green') : 
+              button('✓ ĐÁNH DẤU ĐÃ UỐNG', 'takeMed()', 'primary hero-btn')
+            }
+          </div>
+        </div>
+        <div class="med-hero-footer">
+          <small>Tiến độ: ${state.patient.adherence.taken}/${state.patient.adherence.total} liều (${pct()}%)</small>
+          ${!state.home.medicationTakenToday ? `<button class="text-btn" onclick="missDose()">Báo quên liều</button>` : ''}
+        </div>
       </div>
-      ${patientRehabSection()}
-      <div class="grid two">
-        <section class="card"><small>KHAI NHANH TÁI KHÁM</small><label>Mục tiêu lần này<input value="${state.previsit.goal}" oninput="update(['previsit','goal'],this.value)" placeholder="Đánh giá đáp ứng, độc tính, cấp thuốc..." /></label><label>Thay đổi từ lần trước<textarea oninput="update(['previsit','changes'],this.value)" placeholder="VD: tiêu chảy 3-4 lần/ngày, ban da nhẹ...">${state.previsit.changes}</textarea></label>${button('Gửi thông tin cho khoa','advance("previsit-submitted","PREVISIT_SUBMITTED")','primary')}</section>
-        <section class="card dangerZone"><small>BÁO TRIỆU CHỨNG</small><h3>Triage độc tính tại nhà</h3><p>Chọn nhanh triệu chứng. Nếu khó thở khi nghỉ/đau ngực/lơ mơ -> popup đỏ gửi cả BS và ĐD.</p><div class="symptoms">${['Tiêu chảy','Ban da','Mệt','Sốt','Đau ngực','Khó thở khi nghỉ'].map(s=>button(s, s==='Khó thở khi nghỉ'?'redDyspnea()':'yellowSymptom("'+s+'")', s==='Khó thở khi nghỉ'?'danger':'outline')).join('')}</div></section>
+
+      <!-- 3. Check-in cảm nhận nhanh -->
+      <div class="card patient-quick-feel">
+        <b>Hôm nay chú cảm thấy thế nào?</b>
+        <div class="feel-actions">
+          <button class="feel-btn good" onclick="setRoleTab('health'); setDrillDown('patientHealthSection', 'diary');">
+            <span>😊</span> Bình thường / Tốt
+          </button>
+          <button class="feel-btn warning" onclick="setRoleTab('health'); setDrillDown('patientHealthSection', 'triage');">
+            <span>⚠️</span> Báo triệu chứng
+          </button>
+        </div>
       </div>
-      ${carePlanCard()}${triagePanel()}${patientVoicePanel()}${active ? homePlan() : `<section class="empty card"><b>Chưa có kế hoạch tại nhà</b><p>Kế hoạch chỉ kích hoạt sau khi bác sĩ xác nhận và điều dưỡng hoàn tất teach-back.</p></section>`}
-    `;
-  } else if(curTab === 'pro'){
-    tabContent = `
-      ${patientDailyCheckin()}
-      ${caregiverSyncPanel()}
-    `;
-  } else if(curTab === 'passport'){
-    tabContent = `
-      ${healthPassportCard()}
-      ${teachbackPatientReceipt()}
-      ${followupVaccinePanel()}
-      ${safetyPatientReceipt()}
-      ${decisionReceipt()}
-    `;
-  } else if(curTab === 'chat'){
-    tabContent = `
-      ${patientAiAssistantWidget()}
-      ${caregiverSyncPanel()}
+
+      <!-- 4. Việc cần làm tiếp theo & Lịch tái khám -->
+      <div class="card patient-next-appointment">
+        <div class="appointment-row">
+          <div class="apt-icon">📅</div>
+          <div class="apt-info">
+            <small>LỊCH HẸN TÁI KHÁM GẦN NHẤT</small>
+            <b>${state.patient.followUp}</b>
+            <p>Khoa Ung bướu Phổi · ${state.patient.doctor}</p>
+          </div>
+          <div class="apt-action">
+            ${!can('previsit-submitted') ? 
+              button('Khai bệnh ➔', 'setRoleTab("today"); setDrillDown("patientHealthSection", "previsit")', 'outline') : 
+              pill('Đã gửi thông tin', 'green')
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. Lối tắt xem nhanh -->
+      <div class="patient-shortcuts-grid">
+        <button class="shortcut-tile" onclick="setRoleTab('health')">
+          <span>📊</span>
+          <b>Nhật ký sức khỏe</b>
+        </button>
+        <button class="shortcut-tile" onclick="setRoleTab('treatment'); setDrillDown('patientTreatmentSection', 'rehab');">
+          <span>🫁</span>
+          <b>Tập thở phổi</b>
+        </button>
+        <button class="shortcut-tile" onclick="setRoleTab('profile')">
+          <span>🪪</span>
+          <b>Hộ chiếu QR</b>
+        </button>
+        <button class="shortcut-tile" onclick="setRoleTab('support')">
+          <span>🤖</span>
+          <b>Bác sĩ AI 24/7</b>
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function patientHealthView(){
+  const sec = state.drillDown.patientHealthSection;
+
+  if(sec === 'triage'){
+    return `
+      <div class="drill-header">
+        <button class="back-btn" onclick="setDrillDown('patientHealthSection', null)">⬅ Quay lại Sức khỏe</button>
+        <h3>Báo cáo triệu chứng cho Đội điều trị</h3>
+      </div>
+      ${triagePanel()}
     `;
   }
 
-  return shell(`${patientSummary()}${patientRoleTabBar()}${tabContent}`);
+  if(sec === 'diary'){
+    return `
+      <div class="drill-header">
+        <button class="back-btn" onclick="setDrillDown('patientHealthSection', null)">⬅ Quay lại Sức khỏe</button>
+        <h3>Ghi nhận nhật ký sức khỏe hằng ngày</h3>
+      </div>
+      ${patientDailyCheckin()}
+    `;
+  }
+
+  return `
+    <div class="patient-section-container">
+      <div class="section-title-row">
+        <h2>Sức khỏe & Triệu chứng</h2>
+        <p>Theo dõi diễn biến sức khỏe và gửi báo cáo cho đội ngũ y tế</p>
+      </div>
+
+      <div class="health-cta-card">
+        <button class="primary full-cta-btn" onclick="setDrillDown('patientHealthSection', 'triage')">
+          🚨 + BÁO CÁO TRIỆU CHỨNG BẤT THƯỜNG
+        </button>
+      </div>
+
+      <div class="drill-menu-list">
+        <div class="drill-menu-item" onclick="setDrillDown('patientHealthSection', 'diary')">
+          <div class="item-left">
+            <span class="item-icon">📝</span>
+            <div>
+              <b>Nhật ký sức khỏe hôm nay</b>
+              <small>Ghi nhanh số lần tiêu chảy, ban da, nhiệt độ (30 giây)</small>
+            </div>
+          </div>
+          <span class="chevron">›</span>
+        </div>
+
+        <div class="drill-menu-item" onclick="setRoleTab('treatment'); setDrillDown('patientTreatmentSection', 'rehab');">
+          <div class="item-left">
+            <span class="item-icon">🫁</span>
+            <div>
+              <b>Bài tập thở phục hồi phổi</b>
+              <small>3 bài tập thở chúm môi & cơ hoành duy trì oxy máu</small>
+            </div>
+          </div>
+          <span class="chevron">›</span>
+        </div>
+      </div>
+
+      <!-- Xu hướng 7 ngày -->
+      ${proTrendDashboard()}
+    </div>
+  `;
+}
+
+function patientTreatmentView(){
+  const sec = state.drillDown.patientTreatmentSection;
+
+  if(sec === 'rehab'){
+    return `
+      <div class="drill-header">
+        <button class="back-btn" onclick="setDrillDown('patientTreatmentSection', null)">⬅ Quay lại Điều trị</button>
+        <h3>Bài tập phục hồi chức năng phổi</h3>
+      </div>
+      ${patientRehabSection()}
+    `;
+  }
+
+  if(sec === 'handout'){
+    return `
+      <div class="drill-header">
+        <button class="back-btn" onclick="setDrillDown('patientTreatmentSection', null)">⬅ Quay lại Điều trị</button>
+        <h3>Hướng dẫn dùng thuốc & Xử trí tại nhà</h3>
+      </div>
+      ${teachbackPatientReceipt()}
+    `;
+  }
+
+  return `
+    <div class="patient-section-container">
+      <div class="section-title-row">
+        <h2>Điều trị của tôi</h2>
+        <p>Kế hoạch thuốc, kết quả và hướng dẫn từ Bác sĩ</p>
+      </div>
+
+      <div class="drill-menu-list">
+        <div class="drill-menu-item" onclick="alert('Thuốc đang dùng: Osimertinib 80mg uống 1 viên mỗi sáng lúc 08:00.')">
+          <div class="item-left">
+            <span class="item-icon">💊</span>
+            <div>
+              <b>Thuốc đang dùng</b>
+              <small>Osimertinib 80mg · Đích thế hệ 3</small>
+            </div>
+          </div>
+          <span class="chevron">›</span>
+        </div>
+
+        <div class="drill-menu-item" onclick="setDrillDown('patientTreatmentSection', 'rehab')">
+          <div class="item-left">
+            <span class="item-icon">🫁</span>
+            <div>
+              <b>Chương trình tập thở & Dinh dưỡng</b>
+              <small>Thở chúm môi, thở cơ hoành, BMI 21.3</small>
+            </div>
+          </div>
+          <span class="chevron">›</span>
+        </div>
+
+        <div class="drill-menu-item" onclick="setDrillDown('patientTreatmentSection', 'handout')">
+          <div class="item-left">
+            <span class="item-icon">📄</span>
+            <div>
+              <b>Bản hướng dẫn xuất viện & Xử trí</b>
+              <small>Hướng dẫn tiêu chảy, ban da và số hotline 24/7</small>
+            </div>
+          </div>
+          <span class="chevron">›</span>
+        </div>
+
+        <div class="drill-menu-item" onclick="alert('Kết quả CT ngực tuần 8: Khối u giảm 34.0% (Đáp ứng một phần PR). ctDNA giảm sâu 0.08%.')">
+          <div class="item-left">
+            <span class="item-icon">📈</span>
+            <div>
+              <b>Kết quả điều trị & Hình ảnh</b>
+              <small>CT tuần 8: Đáp ứng tốt (PR -34%)</small>
+            </div>
+          </div>
+          <span class="chevron">›</span>
+        </div>
+      </div>
+
+      ${carePlanCard()}
+    </div>
+  `;
+}
+
+function patientSupportView(){
+  return `
+    <div class="patient-section-container">
+      <div class="section-title-row">
+        <h2>Hỗ trợ & Đồng hành</h2>
+        <p>Hỏi đáp y tế 24/7 và kết nối mạng lưới người thân</p>
+      </div>
+      ${patientAiAssistantWidget()}
+      ${caregiverSyncPanel()}
+    </div>
+  `;
+}
+
+function patientProfileView(){
+  return `
+    <div class="patient-section-container">
+      <div class="section-title-row">
+        <h2>Hồ sơ & Cá nhân</h2>
+        <p>Thông tin thẻ y tế, tài liệu chuyển tuyến và bảo hiểm</p>
+      </div>
+      ${healthPassportCard()}
+      ${followupVaccinePanel()}
+      <div class="card profile-info-card">
+        <b>Bệnh nhân: ${state.patient.name}</b>
+        <p>Mã BN: ${state.patient.code} · ${state.patient.age} tuổi · ${state.patient.sex}</p>
+        <p>Bác sĩ phụ trách: ${state.patient.doctor} | Điều dưỡng: ${state.patient.nurse}</p>
+      </div>
+    </div>
+  `;
+}
+
+function patient(){
+  const curTab = state.roleTabs.patient || 'today';
+  let tabContent = '';
+
+  if(curTab === 'today') tabContent = patientHomeClean();
+  else if(curTab === 'health') tabContent = patientHealthView();
+  else if(curTab === 'treatment') tabContent = patientTreatmentView();
+  else if(curTab === 'support') tabContent = patientSupportView();
+  else if(curTab === 'profile') tabContent = patientProfileView();
+
+  return shell(`${patientSummary()}${tabContent}`);
 }
 
 function teachbackPatientReceipt(){
@@ -1697,60 +1959,152 @@ function reviewDdi(){
   render();
 }
 
-function nurseRoleTabBar(){
-  const cur = state.roleTabs.nurse || 'intake';
-  return `<nav class="role-sub-tabs" aria-label="Menu Điều dưỡng">
-    <button class="sub-tab-btn ${cur==='intake'?'active':''}" onclick="setRoleTab('intake')">
-      <span class="tab-icon">📥</span>
-      <b>Tiếp nhận</b>
+function nurseBottomNav(){
+  const cur = state.roleTabs.nurse || 'today';
+  const pendingCount = state.careLoop.tasks.filter(t => t.status === 'pending').length;
+  return `<nav class="mobile-bottom-nav nurse-nav" aria-label="Điều hướng Điều dưỡng">
+    <button class="mobile-nav-item ${cur==='today'?'active':''}" onclick="setRoleTab('today')">
+      <span class="nav-ico">🏠</span>
+      <small>Hôm nay</small>
     </button>
-    <button class="sub-tab-btn ${cur==='teachback'?'active':''}" onclick="setRoleTab('teachback')">
-      <span class="tab-icon">🎓</span>
-      <b>Teach-back 10đ</b>
+    <button class="mobile-nav-item ${cur==='tasks'?'active':''}" onclick="setRoleTab('tasks')">
+      <span class="nav-ico">📋</span>
+      <small>Công việc ${pendingCount > 0 ? `<span class="badge-blue-dot"></span>` : ''}</small>
     </button>
-    <button class="sub-tab-btn ${cur==='ddi'?'active':''}" onclick="setRoleTab('ddi')">
-      <span class="tab-icon">💊</span>
-      <b>Dược thư DDI</b>
+    <button class="mobile-nav-item ${cur==='patients'?'active':''}" onclick="setRoleTab('patients')">
+      <span class="nav-ico">👥</span>
+      <small>Bệnh nhân</small>
     </button>
-    <button class="sub-tab-btn ${cur==='vaccine'?'active':''}" onclick="setRoleTab('vaccine')">
-      <span class="tab-icon">💉</span>
-      <b>Tiêm chủng & BHYT</b>
+    <button class="mobile-nav-item ${cur==='more'?'active':''}" onclick="setRoleTab('more')">
+      <span class="nav-ico">⋯</span>
+      <small>Thêm</small>
     </button>
   </nav>`;
 }
 
-function nurse(){
-  const curTab = state.roleTabs.nurse || 'intake';
-
-  let tabContent = '';
-  if(curTab === 'intake'){
-    tabContent = `
-      <div class="grid two">
-        <section class="card"><small>TIẾP NHẬN ĐIỀU DƯỠNG</small><h2>${can('previsit-submitted')?'Có bệnh nhân đã gửi khai nhanh':'Chờ bệnh nhân gửi khai nhanh'}</h2><p>Định danh, sinh hiệu, dị ứng, thuốc đang dùng và dấu hiệu báo động.</p>${checklist('intake', ['idChecked|Đối chiếu họ tên · ngày sinh · mã BN','vitals|Nhập sinh hiệu · SpO₂ · đau · cân nặng','allergy|Xác minh dị ứng','medrec|Medication reconciliation','redflags|Xác minh dấu hiệu báo động'])}<label>Ghi chú voice/nhập tay<textarea oninput="update(['intake','note'],this.value)">${state.intake.note}</textarea></label>${doneCount(state.intake)>=5 ? button('Hoàn tất tiếp nhận → gửi bác sĩ','advance("ready-for-doctor","NURSE_INTAKE_COMPLETED")','primary') : button('Cần đủ checklist để hoàn tất','void(0)','disabled')}</section>
-        <section class="card"><small>MY CARE TASK QUEUE</small><h2>Nhiệm vụ phối hợp ca khám</h2><p>Theo dõi trạng thái các đầu việc điều phối giữa Bác sĩ và Điều dưỡng.</p>${careTaskQueue()}</section>
+function nurseHomeClean(){
+  return `
+    <div class="nurse-home-container">
+      <!-- 1. Thẻ tiếp nhận bệnh nhân ưu tiên -->
+      <div class="card nurse-intake-card">
+        <small>TIẾP NHẬN & SINH HIỆU · ${state.patient.code}</small>
+        <h3>${state.patient.name} (${state.patient.age}T)</h3>
+        <p>${can('previsit-submitted') ? 'Bệnh nhân đã gửi khai bệnh trước khám · Sẵn sàng đo sinh hiệu & đối chiếu đơn.' : 'Chờ bệnh nhân xác nhận lịch hẹn và gửi thông tin trước khám.'}</p>
+        <div class="nurse-intake-cta">
+          <button class="primary" onclick="setRoleTab('tasks'); setDrillDown('nurseSection', 'intake')">
+            Mở Checklist Tiếp nhận (5 mục) ➔
+          </button>
+        </div>
       </div>
-      ${safetyQueue()}
+
+      <!-- 2. Bàn giao Teach-back nếu BS đã chốt kế hoạch -->
+      <div class="card nurse-teachback-card">
+        <small>BÀN GIAO XUẤT VIỆN (TEACH-BACK)</small>
+        <b>${can('doctor-plan-confirmed') ? 'Bác sĩ đã chốt kế hoạch · Cần bàn giao 10 điểm' : 'Chưa có kế hoạch điều trị từ bác sĩ'}</b>
+        <p>Hướng dẫn dùng Osimertinib 80mg, cách xử trí tiêu chảy và in bản A4 cho bệnh nhân.</p>
+        ${can('doctor-plan-confirmed') ? `
+          <button class="outline" onclick="setRoleTab('tasks'); setDrillDown('nurseSection', 'teachback')">
+            Thực hiện Bảng kiểm 10 điểm ➔
+          </button>
+        ` : ''}
+      </div>
+
+      <!-- 3. Hộp thư Triage & Điều phối ca -->
       ${triageInbox()}
-      ${triageHandoff()}
+      ${safetyQueue()}
+    </div>
+  `;
+}
+
+function nurseTasksView(){
+  const sec = state.drillDown.nurseSection;
+
+  if(sec === 'intake'){
+    return `
+      <div class="drill-header"><button class="back-btn" onclick="setDrillDown('nurseSection', null)">⬅ Quay lại Công việc</button><h3>Tiếp nhận định danh & Sinh hiệu</h3></div>
+      <section class="card"><small>TIẾP NHẬN ĐIỀU DƯỠNG</small><h2>${state.patient.name} (${state.patient.code})</h2><p>Định danh, sinh hiệu, dị ứng, thuốc đang dùng và dấu hiệu báo động.</p>${checklist('intake', ['idChecked|Đối chiếu họ tên · ngày sinh · mã BN','vitals|Nhập sinh hiệu · SpO₂ · đau · cân nặng','allergy|Xác minh dị ứng','medrec|Medication reconciliation','redflags|Xác minh dấu hiệu báo động'])}<label>Ghi chú voice/nhập tay<textarea oninput="update(['intake','note'],this.value)">${state.intake.note}</textarea></label>${doneCount(state.intake)>=5 ? button('Hoàn tất tiếp nhận → gửi bác sĩ','advance("ready-for-doctor","NURSE_INTAKE_COMPLETED")','primary') : button('Cần đủ checklist để hoàn tất','void(0)','disabled')}</section>
     `;
-  } else if(curTab === 'teachback'){
-    tabContent = `
+  }
+  if(sec === 'teachback'){
+    return `
+      <div class="drill-header"><button class="back-btn" onclick="setDrillDown('nurseSection', null)">⬅ Quay lại Công việc</button><h3>Bàn giao & Giáo dục Teach-back</h3></div>
       <section class="card"><small>BÀN GIAO & GIÁO DỤC SỨC KHỎE</small><h2>${can('doctor-plan-confirmed')?'Kế hoạch đã chuyển từ bác sĩ':'Chưa có kế hoạch điều trị'}</h2><p>Điều dưỡng chỉ nhận các việc cần phối hợp từ quyết định đã xác nhận — không nhận toàn bộ bệnh án và không tự sinh y lệnh.</p>${can('doctor-plan-confirmed') ? handoffCards('nurse') + teachback() : '<div class="empty">Handoff cards và Teach-back sẽ xuất hiện sau khi BS xác nhận quyết định.</div>'}</section>
       ${decisionReceipt()}
     `;
-  } else if(curTab === 'ddi'){
-    tabContent = `
+  }
+
+  return `
+    <div class="nurse-tasks-container">
+      <div class="section-title-row">
+        <h2>Công việc Điều dưỡng</h2>
+        <p>Hàng đợi nhiệm vụ chăm sóc và điều phối ca khám</p>
+      </div>
+
+      <div class="drill-menu-list">
+        <div class="drill-menu-item" onclick="setDrillDown('nurseSection', 'intake')">
+          <div class="item-left"><span class="item-icon">📥</span><div><b>Tiếp nhận định danh & Đo sinh hiệu</b><small>${doneCount(state.intake)}/5 mục hoàn tất</small></div></div>
+          <span class="chevron">›</span>
+        </div>
+        <div class="drill-menu-item" onclick="setDrillDown('nurseSection', 'teachback')">
+          <div class="item-left"><span class="item-icon">🎓</span><div><b>Bàn giao xuất viện (Teach-back 10 điểm)</b><small>${doneCount(state.education)}/10 mục hoàn tất</small></div></div>
+          <span class="chevron">›</span>
+        </div>
+      </div>
+
+      <section class="card"><small>MY CARE TASK QUEUE</small><h2>Nhiệm vụ phối hợp ca khám</h2><p>Theo dõi trạng thái các đầu việc điều phối giữa Bác sĩ và Điều dưỡng.</p>${careTaskQueue()}</section>
+      ${safetyQueue()}
+    </div>
+  `;
+}
+
+function nursePatientsView(){
+  return `
+    <div class="nurse-patients-container">
+      <div class="section-title-row">
+        <h2>Bệnh nhân theo dõi</h2>
+        <p>Danh sách bệnh nhân đang điều trị ngoại trú và nhận thuốc</p>
+      </div>
+      <div class="patient-select-card active">
+        <div class="patient-select-header">
+          <div>
+            <b>${state.patient.name}</b> <span class="badge-code">${state.patient.code}</span>
+            <p>${state.patient.diagnosis} · ${state.patient.stage}</p>
+          </div>
+          <span class="pill green">Đang chăm sóc</span>
+        </div>
+        <div class="patient-mini-status">
+          <small>Bác sĩ điều trị: <strong>${state.patient.doctor}</strong> | Điều dưỡng phụ trách: <strong>${state.patient.nurse}</strong></small>
+        </div>
+      </div>
       ${ddiCheckerPanel()}
-    `;
-  } else if(curTab === 'vaccine'){
-    tabContent = `
+    </div>
+  `;
+}
+
+function nurseMoreView(){
+  return `
+    <div class="nurse-more-container">
+      <div class="section-title-row">
+        <h2>Mở rộng & Hỗ trợ</h2>
+        <p>Dược thư tương tác, tiêm chủng, dự toán BHYT và phân bổ RVU</p>
+      </div>
       ${followupVaccinePanel()}
       ${workloadAllocationPanel()}
       ${caregiverSyncPanel()}
-    `;
-  }
+    </div>
+  `;
+}
 
-  return shell(`${patientSummary()}${nurseRoleTabBar()}${tabContent}${activityLog()}`);
+function nurse(){
+  const curTab = state.roleTabs.nurse || 'today';
+  let tabContent = '';
+
+  if(curTab === 'today') tabContent = nurseHomeClean();
+  else if(curTab === 'tasks') tabContent = nurseTasksView();
+  else if(curTab === 'patients') tabContent = nursePatientsView();
+  else if(curTab === 'more') tabContent = nurseMoreView();
+
+  return shell(`${patientSummary()}${nurseBottomNav()}${tabContent}${activityLog()}`);
 }
 function completeTeachback(){
   if(doneCount(state.education) < 10) return;
@@ -2668,72 +3022,233 @@ function reviewGeneticPedigree(){
   render();
 }
 
-function doctorRoleTabBar(){
-  const cur = state.roleTabs.doctor || 'command';
-  return `<nav class="role-sub-tabs" aria-label="Menu Bác sĩ">
-    <button class="sub-tab-btn ${cur==='command'?'active':''}" onclick="setRoleTab('command')">
-      <span class="tab-icon">📋</span>
-      <b>Lệnh khám & SOAP</b>
+function doctorBottomNav(){
+  const cur = state.roleTabs.doctor || 'overview';
+  const redCount = state.alerts.filter(a => a.type === 'red' && state.alertResolution.status !== 'resolved').length;
+  return `<nav class="mobile-bottom-nav doctor-nav" aria-label="Điều hướng Bác sĩ">
+    <button class="mobile-nav-item ${cur==='overview'?'active':''}" onclick="setRoleTab('overview')">
+      <span class="nav-ico">📋</span>
+      <small>Tổng quan</small>
     </button>
-    <button class="sub-tab-btn ${cur==='clinical'?'active':''}" onclick="setRoleTab('clinical')">
-      <span class="tab-icon">🩺</span>
-      <b>Lâm sàng & NCCN</b>
+    <button class="mobile-nav-item ${cur==='patients'?'active':''}" onclick="setRoleTab('patients')">
+      <span class="nav-ico">👥</span>
+      <small>Bệnh nhân</small>
     </button>
-    <button class="sub-tab-btn ${cur==='safety'?'active':''}" onclick="setRoleTab('safety')">
-      <span class="tab-icon">🧪</span>
-      <b>MDCalc & Thuốc</b>
+    <button class="mobile-nav-item ${cur==='tasks'?'active':''}" onclick="setRoleTab('tasks')">
+      <span class="nav-ico">⚡</span>
+      <small>Cần xử lý ${redCount > 0 ? `<span class="badge-red-dot"></span>` : ''}</small>
     </button>
-    <button class="sub-tab-btn ${cur==='genetics'?'active':''}" onclick="setRoleTab('genetics')">
-      <span class="tab-icon">🧬</span>
-      <b>Gen & Tiên lượng</b>
+    <button class="mobile-nav-item ${cur==='more'?'active':''}" onclick="setRoleTab('more')">
+      <span class="nav-ico">⋯</span>
+      <small>Thêm</small>
     </button>
   </nav>`;
 }
 
-function doctor(){
-  const curTab = state.roleTabs.doctor || 'command';
+function doctorOverviewClean(){
+  const redAlerts = state.alerts.filter(a => a.type === 'red' && state.alertResolution.status !== 'resolved');
+  return `
+    <div class="doctor-overview-container">
+      <!-- 1. Cảnh báo an toàn ưu tiên (Clinical Alerts First) -->
+      ${redAlerts.length > 0 ? `
+        <div class="card danger-callout-card">
+          <div class="danger-callout-header">
+            <b>🚨 ${redAlerts.length} VẤN ĐỀ AN TOÀN CẦN XỬ LÝ GẤP</b>
+            <span class="badge-tag red">Cấp cứu</span>
+          </div>
+          <p>${state.patient.name}: Khó thở khi nghỉ (SpO2 98%). Cần đánh giá loại trừ viêm phổi kẽ ILD.</p>
+          <button class="danger btn-sm" onclick="setRoleTab('tasks')">Xem chi tiết & Xử trí ➔</button>
+        </div>
+      ` : ''}
 
-  let tabContent = '';
-  if(curTab === 'command'){
-    tabContent = `
-      ${voiceScribePanel()}
+      <!-- 2. Bệnh nhân trọng tâm hôm nay -->
+      <div class="card doctor-focus-patient" onclick="setRoleTab('patients'); setDrillDown('doctorPatientSection', 'summary')">
+        <div class="focus-patient-top">
+          <div>
+            <small>BỆNH NHÂN ĐANG KHÁM</small>
+            <h3>${state.patient.name} (${state.patient.code})</h3>
+            <p>${state.patient.age}T · ${state.patient.diagnosis} · ${state.patient.stage}</p>
+          </div>
+          <span class="chevron-box">›</span>
+        </div>
+        <div class="focus-patient-tags">
+          <span class="pill purple">Osimertinib 80mg</span>
+          <span class="pill green">PR (-34.0%)</span>
+          <span class="pill blue">ctDNA 0.08%</span>
+          <span class="pill yellow">Tiêu chảy G2</span>
+        </div>
+      </div>
+
+      <!-- 3. Các quyết định lâm sàng đang chờ (Pending Decisions) -->
+      <div class="card doctor-pending-decision">
+        <small>QUYẾT ĐỊNH LÂM SÀNG · TUẦN 6</small>
+        <b>Tiếp tục liều Osimertinib 80mg hay đánh giá thêm?</b>
+        <p>Tuân thủ tốt (98%), đáp ứng một phần PR, không có đột biến kháng thuốc.</p>
+        <div class="decision-quick-actions">
+          <button class="primary" onclick="setRoleTab('patients'); setDrillDown('doctorPatientSection', 'decision')">
+            Xem Decision Brief & Chốt phác đồ ➔
+          </button>
+          <button class="outline" onclick="copySoapSummary()">
+            📋 Copy SOAP EMR
+          </button>
+        </div>
+      </div>
+
+      <!-- 4. Lối tắt mở nhanh module y khoa -->
+      <div class="doctor-quick-modules">
+        <b>Lối tắt chuyên môn:</b>
+        <div class="quick-chips-scroll">
+          <button class="chip-btn" onclick="setRoleTab('patients'); setDrillDown('doctorPatientSection', 'recist')">🫁 RECIST 1.1</button>
+          <button class="chip-btn" onclick="setRoleTab('patients'); setDrillDown('doctorPatientSection', 'nccn')">⚡ Phác đồ NCCN</button>
+          <button class="chip-btn" onclick="setRoleTab('more'); setDrillDown('doctorPatientSection', 'calculators')">🧪 Máy tính MDCalc</button>
+          <button class="chip-btn" onclick="setRoleTab('patients'); setDrillDown('doctorPatientSection', 'ddi')">💊 Dược thư DDI</button>
+          <button class="chip-btn" onclick="setRoleTab('patients'); setDrillDown('doctorPatientSection', 'mdt')">👥 Hội đồng MDT</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function doctorPatientsView(){
+  const sec = state.drillDown.doctorPatientSection;
+
+  if(sec === 'recist'){
+    return `<div class="drill-header"><button class="back-btn" onclick="setDrillDown('doctorPatientSection', null)">⬅ Quay lại Bệnh nhân</button><h3>Đo lường tổn thương RECIST 1.1</h3></div>${recistAssessmentBrief()}`;
+  }
+  if(sec === 'nccn'){
+    return `<div class="drill-header"><button class="back-btn" onclick="setDrillDown('doctorPatientSection', null)">⬅ Quay lại Bệnh nhân</button><h3>Cây phác đồ chuẩn NCCN / ESMO</h3></div>${nccnPathwayViewer()}`;
+  }
+  if(sec === 'ctcae'){
+    return `<div class="drill-header"><button class="back-btn" onclick="setDrillDown('doctorPatientSection', null)">⬅ Quay lại Bệnh nhân</button><h3>Xử trí độc tính chuẩn CTCAE v5.0</h3></div>${ctcaeToxicityGuide()}`;
+  }
+  if(sec === 'genetics'){
+    return `<div class="drill-header"><button class="back-btn" onclick="setDrillDown('doctorPatientSection', null)">⬅ Quay lại Bệnh nhân</button><h3>Sinh học phân tử & Động học ctDNA</h3></div>${biomarkerEvolutionPanel()}${geneticPedigreePanel()}`;
+  }
+  if(sec === 'ddi'){
+    return `<div class="drill-header"><button class="back-btn" onclick="setDrillDown('doctorPatientSection', null)">⬅ Quay lại Bệnh nhân</button><h3>Đối chiếu & Tra cứu Dược thư DDI</h3></div>${ddiCheckerPanel()}`;
+  }
+  if(sec === 'mdt'){
+    return `<div class="drill-header"><button class="back-btn" onclick="setDrillDown('doctorPatientSection', null)">⬅ Quay lại Bệnh nhân</button><h3>Hội đồng đa chuyên khoa MDT</h3></div>${mdtConsultationPanel()}`;
+  }
+  if(sec === 'calculators'){
+    return `<div class="drill-header"><button class="back-btn" onclick="setDrillDown('doctorPatientSection', null)">⬅ Quay lại Bệnh nhân</button><h3>Máy tính lâm sàng MDCalc</h3></div>${clinicalCalculatorsPanel()}`;
+  }
+  if(sec === 'pro_trend'){
+    return `<div class="drill-header"><button class="back-btn" onclick="setDrillDown('doctorPatientSection', null)">⬅ Quay lại Bệnh nhân</button><h3>Xu hướng triệu chứng PRO 7 ngày</h3></div>${proTrendDashboard()}`;
+  }
+  if(sec === 'decision'){
+    return `
+      <div class="drill-header"><button class="back-btn" onclick="setDrillDown('doctorPatientSection', null)">⬅ Quay lại Bệnh nhân</button><h3>Decision Brief & Chốt kế hoạch</h3></div>
       <div class="decision-layout">
         <section class="card"><small>DECISION BRIEF · TUẦN 6</small><h2>Tiếp tục điều trị hay cần đánh giá thêm?</h2><p class="lead">Bản tóm tắt cho một quyết định — không phải bệnh án. Mọi gợi ý cần bác sĩ xác nhận.</p>${patientVoice()}<div class="decision-lens"><small>DECISION LENS · FRAMING MÔ PHỎNG</small><h3>Câu hỏi lần khám</h3><b>Có thể tiếp tục liều hiện tại trong khi hoàn thiện dữ liệu an toàn và đáp ứng không?</b><div class="lens-grid"><div><small>Tín hiệu ủng hộ</small><p>Tuân thủ tốt · molecular phù hợp · độc tính demo G1–2</p></div><div><small>Next-best-information</small><p>CT tuần 8 · ECG/QTc · điện giải · xác minh toxicity trực tiếp</p></div></div><h3>Điểm bất định cần ghi nhận</h3>${uncertainties()}</div><div class="brief-columns"><div><h3>Dữ kiện mô phỏng</h3>${briefFacts(state.decisionBrief.facts,'fact')}</div><div><h3>Người bệnh báo cáo</h3>${briefFacts(state.decisionBrief.patientReported,'reported')}</div></div><h3>Evidence map · bấm từng mục để xác nhận đã review</h3>${evidenceMap()}${readinessPanel()}<h3>Safety gates</h3><div class="gates">${state.decisionBrief.safetyGates.map(g=>`<div class="gate ${g.status}"><span>${g.status==='ready'||g.status==='clear'?'✓':'!'}</span><div><b>${g.label}</b><small>${g.detail}</small></div></div>`).join('')}</div></section>
         <section class="card"><small>CDS OPTIONS · KHÔNG PHẢI Y LỆNH</small><h2>Các hướng xử trí để bác sĩ cân nhắc</h2>${decisionOptions()}<label>Lý do quyết định / lý do từ chối gợi ý<textarea oninput="update(['doctor','decisionReason'],this.value)" placeholder="Bắt buộc ghi lý do trước khi xác nhận">${state.doctor.decisionReason}</textarea></label><div class="actions">${can('ready-for-doctor') ? button('Nhận ca','advance("doctor-examining","DOCTOR_ACCEPTED_CASE")','outline') : button('Chờ ĐD hoàn tất tiếp nhận','void(0)','disabled')}${hasUnresolvedRed() ? button('Đang có cảnh báo đỏ · phải xử trí trước','void(0)','disabled') : !decisionReady() ? button('Review evidence + xác nhận data gap trước','void(0)','disabled') : can('doctor-examining') && state.doctor.decisionReason.trim() ? button('Xác nhận quyết định · tạo handoff','confirmDecision()','primary') : button('Cần nhận ca + ghi lý do','void(0)','disabled')}</div></section>
-        <aside class="sticky"><section class="card evidence"><small>NGUỒN & PHIÊN BẢN</small><h3>${state.decisionBrief.evidence.title}</h3><p>${state.decisionBrief.evidence.version}</p><div class="warning">${state.decisionBrief.evidence.note}</div><hr><b>Dữ liệu còn thiếu</b><ul>${state.decisionBrief.safetyGates.filter(g=>g.status==='missing').map(g=>`<li>${g.label}</li>`).join('')}</ul></section></aside>
       </div>
-      ${workloadAllocationPanel()}
-      ${activityLog()}
-    `;
-  } else if(curTab === 'clinical'){
-    tabContent = `
-      ${nccnPathwayViewer()}
-      ${recistAssessmentBrief()}
-      ${ctcaeToxicityGuide()}
-      ${mdtConsultationPanel()}
-      ${doctorCareSnapshot()}
-      ${escalationReview()}
-      ${triageHandoff()}
-    `;
-  } else if(curTab === 'safety'){
-    tabContent = `
-      ${clinicalCalculatorsPanel()}
-      ${medicationSafetyBrief()}
-      ${ddiCheckerPanel()}
-      ${safetyLabsPanel()}
-      ${safetyQueue()}
-    `;
-  } else if(curTab === 'genetics'){
-    tabContent = `
-      ${biomarkerEvolutionPanel()}
-      ${geneticPedigreePanel()}
-      ${prognosisRadarPanel()}
-      ${healthPassportCard()}
-      ${proTrendDashboard()}
     `;
   }
 
-  return shell(`${patientSummary()}${doctorRoleTabBar()}${tabContent}`);
+  return `
+    <div class="doctor-patients-container">
+      <div class="section-title-row">
+        <h2>Hồ sơ Bệnh nhân</h2>
+        <p>Chọn bệnh nhân để xem chi tiết bệnh án và phân tích chuyên sâu</p>
+      </div>
+
+      <!-- Danh sách bệnh nhân rút gọn -->
+      <div class="patient-select-card active">
+        <div class="patient-select-header">
+          <div>
+            <b>${state.patient.name}</b> <span class="badge-code">${state.patient.code}</span>
+            <p>${state.patient.diagnosis} · ${state.patient.stage}</p>
+          </div>
+          <span class="pill green">Đang khám</span>
+        </div>
+        <div class="patient-mini-status">
+          <small>Đột biến: <strong>EGFR ex19del</strong> | Liều: <strong>Osimertinib 80mg</strong> | Đáp ứng: <strong>PR (-34%)</strong></small>
+        </div>
+      </div>
+
+      <!-- Menu Drill-down các module chuyên môn -->
+      <div class="drill-menu-list">
+        <div class="drill-menu-item" onclick="setDrillDown('doctorPatientSection', 'decision')">
+          <div class="item-left"><span class="item-icon">📋</span><div><b>Decision Brief & Xác nhận phác đồ</b><small>Bằng chứng, phân tích lợi ích và xác nhận quyết định</small></div></div>
+          <span class="chevron">›</span>
+        </div>
+        <div class="drill-menu-item" onclick="setDrillDown('doctorPatientSection', 'recist')">
+          <div class="item-left"><span class="item-icon">🫁</span><div><b>Đo lường RECIST 1.1</b><small>Tổng kích thước u giảm từ 50mm -> 33mm (-34.0% PR)</small></div></div>
+          <span class="chevron">›</span>
+        </div>
+        <div class="drill-menu-item" onclick="setDrillDown('doctorPatientSection', 'nccn')">
+          <div class="item-left"><span class="item-icon">⚡</span><div><b>Cây phác đồ NCCN / ESMO</b><small>Hướng dẫn bước 1 Category 1 và 4 nhánh kháng thuốc</small></div></div>
+          <span class="chevron">›</span>
+        </div>
+        <div class="drill-menu-item" onclick="setDrillDown('doctorPatientSection', 'ctcae')">
+          <div class="item-left"><span class="item-icon">🩺</span><div><b>Đánh giá & Xử trí độc tính CTCAE</b><small>Tiêu chảy G2 (Oresol/Loperamide), Ban da G1</small></div></div>
+          <span class="chevron">›</span>
+        </div>
+        <div class="drill-menu-item" onclick="setDrillDown('doctorPatientSection', 'genetics')">
+          <div class="item-left"><span class="item-icon">🧬</span><div><b>Sinh học phân tử, ctDNA & Phả hệ</b><small>ctDNA 0.08%, không đột biến kháng thuốc, phả hệ 3 đời</small></div></div>
+          <span class="chevron">›</span>
+        </div>
+        <div class="drill-menu-item" onclick="setDrillDown('doctorPatientSection', 'ddi')">
+          <div class="item-left"><span class="item-icon">💊</span><div><b>Đối chiếu Dược thư Tương tác thuốc (DDI)</b><small>Phát hiện Omeprazole PPI giảm hấp thu TKI</small></div></div>
+          <span class="chevron">›</span>
+        </div>
+        <div class="drill-menu-item" onclick="setDrillDown('doctorPatientSection', 'mdt')">
+          <div class="item-left"><span class="item-icon">👥</span><div><b>Biên bản Hội đồng Đa chuyên khoa (MDT)</b><small>Đồng thuận 4 chuyên khoa Nội, Ngoại, Xạ, GPB</small></div></div>
+          <span class="chevron">›</span>
+        </div>
+        <div class="drill-menu-item" onclick="setDrillDown('doctorPatientSection', 'pro_trend')">
+          <div class="item-left"><span class="item-icon">📊</span><div><b>Xu hướng triệu chứng tại nhà (PRO 7 ngày)</b><small>Biểu đồ số lần tiêu chảy và mức độ ban da</small></div></div>
+          <span class="chevron">›</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function doctorTasksView(){
+  return `
+    <div class="doctor-tasks-container">
+      <div class="section-title-row">
+        <h2>Cần xử lý & Điều phối</h2>
+        <p>Các cảnh báo đỏ, yêu cầu cận lâm sàng và nhiệm vụ chuyển tuyến</p>
+      </div>
+      ${safetyQueue()}
+      ${escalationReview()}
+      ${triageHandoff()}
+      ${doctorCareSnapshot()}
+    </div>
+  `;
+}
+
+function doctorMoreView(){
+  return `
+    <div class="doctor-more-container">
+      <div class="section-title-row">
+        <h2>Công cụ & Mở rộng</h2>
+        <p>Máy tính lâm sàng, tiên lượng MSKCC, liên thông FHIR và phân bổ RVU</p>
+      </div>
+      ${clinicalCalculatorsPanel()}
+      ${prognosisRadarPanel()}
+      ${healthPassportCard()}
+      ${workloadAllocationPanel()}
+      ${rehabAssessmentPanel()}
+      ${safetyLabsPanel()}
+      ${medicationSafetyBrief()}
+    </div>
+  `;
+}
+
+function doctor(){
+  const curTab = state.roleTabs.doctor || 'overview';
+  let tabContent = '';
+
+  if(curTab === 'overview') tabContent = doctorOverviewClean();
+  else if(curTab === 'patients') tabContent = doctorPatientsView();
+  else if(curTab === 'tasks') tabContent = doctorTasksView();
+  else if(curTab === 'more') tabContent = doctorMoreView();
+
+  return shell(`${patientSummary()}${doctorBottomNav()}${tabContent}`);
 }
 function patientVoice(){ const p=state.previsit; const submitted=state.encounterState!=='previsit-draft'||p.submittedAt; return `<div class="patient-voice ${submitted?'submitted':''}"><div><small>PATIENT VOICE · NGUỒN NGƯỜI BỆNH TỰ BÁO CÁO</small><h3>${submitted?'Thông tin trước khám đã gửi':'Chưa có khai nhanh từ người bệnh'}</h3>${submitted?`<p><b>Mục tiêu:</b> ${p.goal||'Chưa nhập'}</p><p><b>Thay đổi:</b> ${p.changes||'Chưa nhập'}</p><small>Gửi lúc ${p.submittedAt||'không rõ'} · Không tự động xem là dữ kiện đã xác minh</small>`:'<p>Điều dưỡng/bác sĩ chưa nhận được patient voice. Đây là empty state, không phải lỗi hồ sơ.</p>'}</div><div>${submitted&&!p.doctorRead?button('Đánh dấu đã đọc','markPatientVoiceRead()','outline'):submitted?pill('BS đã đọc · patient-reported','green'):pill('Chờ người bệnh gửi')}</div></div>`; }
 function markPatientVoiceRead(){ state.previsit.doctorRead=true; event('PATIENT_VOICE_READ',{detail:'Bác sĩ đã đọc thông tin patient-reported trước khám'}); save(); render(); }
