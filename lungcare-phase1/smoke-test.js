@@ -267,8 +267,18 @@ check(run("state.roleTabs.nurse") === 'intake', 'default nurse tab is intake');
 run("setRoleTab('teachback')");
 check(run("state.roleTabs.nurse") === 'teachback', 'nurse tab switched to teachback');
 
+// Smart Workflow Coach & Fast Forward assertions
+run("state = defaultState()");
+const nextAction = run("getSmartNextAction()");
+check(nextAction.targetRole === 'patient' && nextAction.btnText.includes('Gửi'), 'initial next action is patient previsit');
+
+run("fastForwardCompleteDemo()");
+check(run("state.encounterState") === 'home-care-active', 'fast forward completes all 7 encounter steps');
+check(run("state.careLoop.plan.status") === 'active', 'care plan active after fast forward');
+check(run("state.role") === 'patient', 'role returns to patient after fast forward');
+
 console.log('LungCare smoke test: PASS');
-console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate, recist 1.1, ctcae v5.0, teach-back 10-point, mdt workflow, pro diary, soap summary, safety labs, biomarkers, ddi checker, rehab nutrition, caregiver sync, treatment journey, clinical calculators, nccn pathways, voice scribe, health passport, workload allocation, accessibility pwa, mskcc prognosis, ai patient assistant, vaccine cost tracker, genetic pedigree, ddi search, fhir bundle export, role sub-tabs mobile');
+console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate, recist 1.1, ctcae v5.0, teach-back 10-point, mdt workflow, pro diary, soap summary, safety labs, biomarkers, ddi checker, rehab nutrition, caregiver sync, treatment journey, clinical calculators, nccn pathways, voice scribe, health passport, workload allocation, accessibility pwa, mskcc prognosis, ai patient assistant, vaccine cost tracker, genetic pedigree, ddi search, fhir bundle export, role sub-tabs mobile, smart coach & fast forward');
 
 function stateValue(key) {
   return run(`Boolean(state.safetyRequests[0] && state.safetyRequests[0].${key})`);
