@@ -261,6 +261,40 @@ main{
 .pill.yellow{background:#fffbeb;color:#b45309;border-color:#fde68a}
 .pill.red{background:var(--soft-red);color:var(--red);border-color:#fca5a5}
 
+.role-sub-tabs{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:8px;
+  background:white;
+  padding:6px;
+  border-radius:18px;
+  border:1px solid var(--line);
+  box-shadow:var(--shadow);
+  margin-bottom:16px;
+}
+.sub-tab-btn{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:3px;
+  padding:10px 8px;
+  background:transparent;
+  border:0;
+  border-radius:12px;
+  color:#64748b;
+  cursor:pointer;
+  transition:all 0.2s cubic-bezier(0.16,1,0.3,1);
+}
+.sub-tab-btn:hover{background:#f8fafc;color:#0f172a}
+.sub-tab-btn.active{
+  background:linear-gradient(135deg,#4f46e5,#4338ca);
+  color:white;
+  box-shadow:0 4px 12px var(--purple-glow);
+}
+.sub-tab-btn .tab-icon{font-size:18px;line-height:1}
+.sub-tab-btn b{font-size:12px;font-weight:750;letter-spacing:-0.01em}
+
 .journey-card{border-color:#c7d2fe;background:linear-gradient(180deg,#faf5ff 0%,#ffffff 100%)}
 .journey-header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:16px}
 .journey-header h3{margin:4px 0;color:#3730a3;font-size:18px}

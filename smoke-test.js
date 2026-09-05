@@ -251,8 +251,24 @@ check(fhirBundle.resourceType === 'Bundle' && fhirBundle.entry.length === 7, 'FH
 check(fhirBundle.entry.some(e => e.resource.resourceType === 'Patient'), 'FHIR Bundle has Patient resource');
 check(fhirBundle.entry.some(e => e.resource.resourceType === 'MedicationStatement'), 'FHIR Bundle has MedicationStatement resource');
 
+// Role Sub-Tabs Navigation assertions
+run("state = defaultState(); state.role='patient'");
+check(run("state.roleTabs.patient") === 'today', 'default patient tab is today');
+run("setRoleTab('pro')");
+check(run("state.roleTabs.patient") === 'pro', 'patient tab switched to pro');
+
+run("state.role='doctor'");
+check(run("state.roleTabs.doctor") === 'command', 'default doctor tab is command');
+run("setRoleTab('clinical')");
+check(run("state.roleTabs.doctor") === 'clinical', 'doctor tab switched to clinical');
+
+run("state.role='nurse'");
+check(run("state.roleTabs.nurse") === 'intake', 'default nurse tab is intake');
+run("setRoleTab('teachback')");
+check(run("state.roleTabs.nurse") === 'teachback', 'nurse tab switched to teachback');
+
 console.log('LungCare smoke test: PASS');
-console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate, recist 1.1, ctcae v5.0, teach-back 10-point, mdt workflow, pro diary, soap summary, safety labs, biomarkers, ddi checker, rehab nutrition, caregiver sync, treatment journey, clinical calculators, nccn pathways, voice scribe, health passport, workload allocation, accessibility pwa, mskcc prognosis, ai patient assistant, vaccine cost tracker, genetic pedigree, ddi search, fhir bundle export');
+console.log('Assertions: normalize, role guards, request lifecycle, provenance, readiness, red gate, recist 1.1, ctcae v5.0, teach-back 10-point, mdt workflow, pro diary, soap summary, safety labs, biomarkers, ddi checker, rehab nutrition, caregiver sync, treatment journey, clinical calculators, nccn pathways, voice scribe, health passport, workload allocation, accessibility pwa, mskcc prognosis, ai patient assistant, vaccine cost tracker, genetic pedigree, ddi search, fhir bundle export, role sub-tabs mobile');
 
 function stateValue(key) {
   return run(`Boolean(state.safetyRequests[0] && state.safetyRequests[0].${key})`);
