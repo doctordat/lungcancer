@@ -3333,5 +3333,16 @@ function yellowSymptom(s){ state.alerts.unshift({type:'yellow', name:'TOXICITY_R
 function acknowledgeAlert(){ state.alertResolution.acknowledged=true; state.alertResolution.status='acknowledged'; event('RED_ALERT_ACKNOWLEDGED',{detail:'Đã tiếp nhận cảnh báo; quyết định thường quy vẫn bị khóa cho tới khi có đánh giá và xác nhận của bác sĩ.'}); save(); render(); }
 function resolveAlert(){ if(!state.alertResolution.assessment.trim()||!state.alertResolution.action.trim()||!state.alertResolution.clinicianReason.trim()) return; state.alertResolution.status='resolved'; state.alertHandled=true; event('RED_ALERT_CLINICIAN_RESOLVED',{detail:`Đánh giá: ${state.alertResolution.assessment} · Lý do BS: ${state.alertResolution.clinicianReason}`}); save(); render(); }
 function voiceDoctor(){ state.doctor.voiceDone = true; state.doctor.note = 'Voice draft: BN tuần 6 osimertinib, tuân thủ tốt 41/42 liều. Tiêu chảy grade 2, ban da grade 1, không sốt. Chưa có khó thở lúc khám. Đề xuất tiếp tục osimertinib, xử trí hỗ trợ tiêu chảy/ban da, xét nghiệm CBC/điện giải/gan thận, hẹn CT đánh giá đáp ứng.'; event('VOICE_CONSULT_STRUCTURED', {detail:'AI tách transcript thành tuân thủ, độc tính, khám, nhận định, kế hoạch đề xuất'}); save(); render(); }
-function render(){ document.getElementById('app').innerHTML = ({patient, nurse, doctor}[state.role] || patient)(); }
-render();
+function render(){
+  const appEl = document.getElementById('app');
+  if(!appEl) return;
+  const roleFn = { patient, nurse, doctor }[state.role] || patient;
+  appEl.innerHTML = roleFn();
+}
+if(typeof window !== 'undefined' && typeof document !== 'undefined'){
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', render);
+  } else {
+    render();
+  }
+}
