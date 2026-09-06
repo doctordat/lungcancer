@@ -779,7 +779,11 @@ function handleGlobalSearch(q){
     if(state.role !== 'doctor') switchRole('doctor');
     setRoleTab('patients');
     setDrillDown('doctorPatientSection', term.includes('recist')?'recist':term.includes('nccn')?'nccn':term.includes('mdt')?'mdt':'summary');
-  } else if(term.includes('thuốc') || term.includes('tương tác') || term.includes('ddi') || term.includes('mdcalc') || term.includes('thận') || term.includes('qtc') || term.includes('crcl')){
+  } else if(term.includes('minh') || term.includes('lc-871748')){
+    if(state.role !== 'doctor') switchRole('doctor');
+    setRoleTab('patients');
+    setDrillDown('doctorPatientSection', 'summary');
+  } else if(term.includes('thuốc') || term.includes('tương tác') || term.includes('ddi') || term.includes('mdcalc') || term.includes('thận') || term.includes('qt') || term.includes('crcl')){
     if(state.role !== 'doctor') switchRole('doctor');
     setRoleTab('more');
   } else if(term.includes('gen') || term.includes('đột biến') || term.includes('ctdna') || term.includes('phả hệ') || term.includes('tiên lượng')){
@@ -844,19 +848,10 @@ function shell(content){
     <main>
       ${topbar(roleMeta)}
       ${alertsStrip()}
-      ${globalSearchBar()}
-      ${smartWorkflowCoachBanner()}
-      ${flowRibbon()}
-      ${treatmentJourneyTimeline()}
+      ${state.role === 'doctor' ? globalSearchBar() : ''}
       ${content}
     </main>
     ${printHandoutTemplate()}
-    <nav class="mobile-bottom-nav" aria-label="Điều hướng nhanh">
-      <button class="mobile-nav-item ${state.role==='patient'?'active':''}" onclick="switchRole('patient')"><span>⌂</span><small>My Care</small></button>
-      <button class="mobile-nav-item ${state.role==='nurse'?'active':''}" onclick="switchRole('nurse')"><span>♡</span><small>Điều dưỡng</small></button>
-      <button class="mobile-nav-item ${state.role==='doctor'?'active':''}" onclick="switchRole('doctor')"><span>✚</span><small>Bác sĩ</small></button>
-      <button class="mobile-nav-item emergency" onclick="redDyspnea()"><span>!</span><small>Khẩn cấp</small></button>
-    </nav>
   </div>`;
 }
 
@@ -1780,7 +1775,7 @@ function patient(){
   else if(curTab === 'support') tabContent = patientSupportView();
   else if(curTab === 'profile') tabContent = patientProfileView();
 
-  return shell(`${patientSummary()}${tabContent}`);
+  return shell(`${patientBottomNav()}${tabContent}`);
 }
 
 function teachbackPatientReceipt(){

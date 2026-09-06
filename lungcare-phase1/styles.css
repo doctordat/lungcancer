@@ -861,6 +861,11 @@ main{
 .mobile-bottom-nav{display:none}
 @media(max-width:640px){
   body{padding-bottom:calc(78px + env(safe-area-inset-bottom));overflow-x:hidden}
+  .global-search-bar{margin-bottom:10px;border-radius:12px;box-shadow:none}
+  .slim-red-banner{position:sticky;top:4px;z-index:15;padding:8px 10px;margin:0 -2px 10px;border-radius:12px}
+  .slim-red-left{min-width:0;flex:1;display:grid;grid-template-columns:8px 1fr;gap:4px 7px}.slim-red-left b{font-size:11px;line-height:1.2}.slim-red-left small{grid-column:2;font-size:9px}
+  .slim-red-right{display:flex;flex-direction:column;gap:3px}.slim-red-right button{font-size:10px;padding:6px 7px;white-space:nowrap}
+  .role-sub-tabs{display:none}
   .app{display:block;min-height:100dvh}
   .side{padding:12px 14px 8px;gap:10px;border-right:0;border-bottom:1px solid rgba(255,255,255,.12)}
   .brand{gap:8px}.brand>b{width:36px;height:36px;border-radius:11px;font-size:15px}.brand span{font-size:9px}
