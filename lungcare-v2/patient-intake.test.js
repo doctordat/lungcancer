@@ -1,0 +1,12 @@
+const assert = require('assert');
+const fs = require('fs');
+const html = fs.readFileSync(__dirname + '/index.html', 'utf8');
+assert(html.includes('function submitPatientCheckin()'));
+assert(html.includes('Gửi khai bệnh cho đội điều trị'));
+assert(html.includes('Có khó thở mới xuất hiện'));
+assert(html.includes('vấn đề cần đối chiếu'));
+assert(html.includes('Bác sĩ'));
+assert(html.includes('Điều dưỡng'));
+assert(html.includes('Hôm nay'));
+console.log('LungCare V2 patient intake UI tests: PASS');
+console.log('Assertions: Vietnamese patient flow, symptom fields, role handoff, report surface');
