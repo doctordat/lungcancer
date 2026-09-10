@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import { submitSymptomReport } from "@/server/store";
-import { symptomKindSchema } from "@/domain/schemas";
+import { symptomKindSchema, dyspneaTriggerSchema, progressionSchema } from "@/domain/schemas";
 import { z } from "zod";
 
 const submitInputSchema = z.object({
   symptom: symptomKindSchema,
+  dyspneaTrigger: dyspneaTriggerSchema.default(null),
+  progression: progressionSchema.default(null),
+  spo2: z.number().min(50).max(100).nullable().default(null),
+  temperature: z.number().min(34).max(43).nullable().default(null),
   diarrheaEpisodes: z.number().int().min(0).max(99).default(0),
   fever: z.boolean().default(false),
   notes: z.string().default(""),

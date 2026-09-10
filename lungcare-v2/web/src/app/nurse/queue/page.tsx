@@ -5,20 +5,12 @@ import Link from "next/link";
 import { useClinical } from "@/components/clinical-context";
 import {
   ShieldCheckIcon,
-  AlertTriangleIcon,
   CheckCircle2Icon,
-  ChevronRightIcon,
-  ActivityIcon,
 } from "@/components/icons";
 
 export default function NurseQueuePage() {
-  const { state, isLoading, isMutating, validateReport } = useClinical();
-
-  const [nurseContext, setNurseContext] = useState<string>(
-    "Đã liên hệ người bệnh qua điện thoại lúc 08:30. Bệnh nhân tỉnh táo nhưng mệt nhiều, đi ngoài phân lỏng 4-5 lần từ sáng kèm sốt nhẹ 38.1°C, chưa dùng thuốc cầm tiêu chảy. Đề nghị Bác sĩ hội chẩn xử trí độc tính TKI độ 2."
-  );
-  const [escalationRequired, setEscalationRequired] = useState<boolean>(true);
-  const [activeFilter, setActiveFilter] = useState<"all" | "pending" | "escalated">("all");
+  const { state, isLoading } = useClinical();
+  const [activeTab, setActiveTab] = useState<"urgent" | "today" | "stable">("urgent");
 
   if (isLoading || !state) {
     return (
@@ -29,311 +21,191 @@ export default function NurseQueuePage() {
     );
   }
 
-  const { patient, activeReport, triageAssessment, nurseValidation } = state;
+  const { patient, activeReport, triageAssessment } = state;
 
-  const handleValidate = async (escalate: boolean) => {
-    if (!activeReport) return;
-    try {
-      await validateReport({
-        reportId: activeReport.id,
-        expectedVersion: activeReport.workflowVersion,
-        escalationRequired: escalate,
-        context: nurseContext,
-      });
-    } catch {
-      // Handled in context
-    }
-  };
+  const isAnUrgent =
+    activeReport?.symptom === "dyspnea" ||
+    triageAssessment?.priority === "urgent" ||
+    activeReport?.status === "submitted";
 
-  const isPendingValidation = activeReport && activeReport.status === "submitted";
+  const isAnAssessed = activeReport && ["nurse_validated", "escalated", "doctor_reviewed", "signed", "patient_notified", "acknowledged"].includes(activeReport.status);
 
   return (
-    <div className="space-y-4">
-      {/* 1. Nurse Command Header */}
-      <section className="bg-slate-900 rounded-3xl p-5 text-white shadow-lg border border-slate-800">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center border border-indigo-500/30">
-              <ShieldCheckIcon size={16} />
-            </div>
-            <span className="font-bold text-xs uppercase tracking-wider text-indigo-300">
-              Care Command Center
-            </span>
+    <div className="space-y-4 pb-16">
+      {/* 1. Header Bar */}
+      <div className="flex items-center justify-between pt-1">
+        <div>
+          <h1 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">
+            Hàng đợi Phân tầng Điều dưỡng
+          </h1>
+          <p className="text-xs text-slate-500">
+            {patient.primaryNurseName} · Trung tâm Ung bướu
+          </p>
+        </div>
+        <span className="px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-bold text-xs border border-indigo-200 dark:border-indigo-800">
+          Ca trực hôm nay
+        </span>
+      </div>
+
+      {/* 2. Top Workload Summary Metrics */}
+      <div className="grid grid-cols-3 gap-2">
+        <button
+          onClick={() => setActiveTab("urgent")}
+          className={`p-3 rounded-2xl border text-left transition-all ${
+            activeTab === "urgent"
+              ? "bg-rose-50/80 border-rose-300 dark:bg-rose-950/60 dark:border-rose-800 text-rose-950 dark:text-rose-200 ring-2 ring-rose-500/20"
+              : "bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
+          }`}
+        >
+          <div className="text-[10px] font-semibold text-rose-700 dark:text-rose-400 uppercase">
+            Cần xử lý ngay
           </div>
-          <span className="px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 text-[11px] font-semibold">
-            {patient.primaryNurseName}
-          </span>
-        </div>
+          <div className="text-xl font-bold mt-0.5 text-rose-600 dark:text-rose-400">
+            {isAnUrgent && !isAnAssessed ? "3" : "2"}
+          </div>
+          <div className="text-[9px] text-slate-400 mt-0.5">Ưu tiên đỏ</div>
+        </button>
 
-        <h1 className="text-xl font-bold tracking-tight text-white mb-1">
-          Hàng đợi Phân tầng Lâm sàng
-        </h1>
-        <p className="text-xs text-slate-400 leading-relaxed">
-          Xác minh thông tin PRO, kiểm tra dấu hiệu sinh tồn và điều phối ca bệnh trước khi chuyển bác sĩ.
-        </p>
+        <button
+          onClick={() => setActiveTab("today")}
+          className={`p-3 rounded-2xl border text-left transition-all ${
+            activeTab === "today"
+              ? "bg-amber-50/80 border-amber-300 dark:bg-amber-950/60 dark:border-amber-800 text-amber-950 dark:text-amber-200 ring-2 ring-amber-500/20"
+              : "bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
+          }`}
+        >
+          <div className="text-[10px] font-semibold text-amber-700 dark:text-amber-400 uppercase">
+            Trong hôm nay
+          </div>
+          <div className="text-xl font-bold mt-0.5 text-amber-600 dark:text-amber-400">8</div>
+          <div className="text-[9px] text-slate-400 mt-0.5">Theo dõi độc tính</div>
+        </button>
 
-        {/* Filter Pills */}
-        <div className="grid grid-cols-3 gap-2 mt-4 pt-3.5 border-t border-slate-800 text-xs">
-          <button
-            onClick={() => setActiveFilter("all")}
-            className={`py-1.5 px-2 rounded-xl font-bold text-center transition-all ${
-              activeFilter === "all"
-                ? "bg-indigo-600 text-white"
-                : "bg-slate-800 text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            Tất cả ({activeReport ? 1 : 0})
-          </button>
-          <button
-            onClick={() => setActiveFilter("pending")}
-            className={`py-1.5 px-2 rounded-xl font-bold text-center transition-all ${
-              activeFilter === "pending"
-                ? "bg-indigo-600 text-white"
-                : "bg-slate-800 text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            Chờ duyệt ({isPendingValidation ? 1 : 0})
-          </button>
-          <button
-            onClick={() => setActiveFilter("escalated")}
-            className={`py-1.5 px-2 rounded-xl font-bold text-center transition-all ${
-              activeFilter === "escalated"
-                ? "bg-indigo-600 text-white"
-                : "bg-slate-800 text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            Đã chuyển ({activeReport?.status === "escalated" ? 1 : 0})
-          </button>
-        </div>
-      </section>
+        <button
+          onClick={() => setActiveTab("stable")}
+          className={`p-3 rounded-2xl border text-left transition-all ${
+            activeTab === "stable"
+              ? "bg-emerald-50/80 border-emerald-300 dark:bg-emerald-950/60 dark:border-emerald-800 text-emerald-950 dark:text-emerald-200 ring-2 ring-emerald-500/20"
+              : "bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300"
+          }`}
+        >
+          <div className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 uppercase">
+            Đang theo dõi
+          </div>
+          <div className="text-xl font-bold mt-0.5 text-emerald-600 dark:text-emerald-400">12</div>
+          <div className="text-[9px] text-slate-400 mt-0.5">Phác đồ ổn định</div>
+        </button>
+      </div>
 
-      {/* 2. Main Priority Queue Item Card */}
-      {activeReport ? (
-        <section className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden">
-          {/* Priority Header Stripe */}
-          <div
-            className={`px-4 py-3 flex items-center justify-between border-b ${
-              triageAssessment?.priority === "urgent"
-                ? "bg-rose-50 dark:bg-rose-950/50 border-rose-200 dark:border-rose-900 text-rose-900 dark:text-rose-200"
-                : triageAssessment?.priority === "review_today"
-                ? "bg-amber-50 dark:bg-amber-950/50 border-amber-200 dark:border-amber-900 text-amber-900 dark:text-amber-200"
-                : "bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-900 text-emerald-900 dark:text-emerald-200"
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <AlertTriangleIcon size={16} />
-              <span className="font-bold text-xs uppercase tracking-wider">
-                {triageAssessment?.priority === "urgent"
-                  ? "KHẨN CẤP · URGENT"
-                  : triageAssessment?.priority === "review_today"
-                  ? "CẦN XEM HÔM NAY · REVIEW TODAY"
-                  : "THEO DÕI ỔN ĐỊNH · STABLE"}
-              </span>
+      {/* 3. Priority Queue List */}
+      <div className="space-y-3">
+        {/* Main Urgent Card: Nguyễn Văn An */}
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border-2 border-rose-500/80 shadow-md overflow-hidden animate-fadeIn">
+          {/* Top Urgent Strip */}
+          <div className="bg-rose-50 dark:bg-rose-950/70 px-4 py-2 border-b border-rose-200 dark:border-rose-900 flex items-center justify-between text-xs text-rose-900 dark:text-rose-200">
+            <div className="flex items-center gap-1.5 font-bold">
+              <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+              <span>CẦN XỬ LÝ KHẨN CẤP · URGENT</span>
             </div>
-            <span className="font-mono text-[10px] uppercase px-2 py-0.5 rounded bg-white/70 dark:bg-slate-800/80 font-bold border border-current/20">
-              Trạng thái: {activeReport.status}
+            <span className="text-[11px] font-mono">
+              {activeReport ? new Date(activeReport.createdAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }) : "08:30"}
             </span>
           </div>
 
-          <div className="p-4 space-y-4">
-            {/* Patient Header Summary */}
+          <div className="p-4 space-y-3">
+            {/* Patient Name & MRN */}
             <div className="flex items-start justify-between">
               <div>
                 <h2 className="text-base font-bold text-slate-900 dark:text-white">
                   {patient.name}
                 </h2>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  {patient.gender}, {patient.age} tuổi · {patient.medicalRecordNumber}
-                </p>
-                <p className="text-[11px] font-medium text-slate-600 dark:text-slate-300 mt-1">
-                  {patient.diagnosis}
+                <p className="text-xs text-slate-500">
+                  {patient.gender}, {patient.age}t · {patient.medicalRecordNumber} · {patient.regimen} (C3D14)
                 </p>
               </div>
-              <span className="text-[10px] text-slate-400 font-mono">
-                {new Date(activeReport.createdAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
+              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                K Phổi IVB
               </span>
             </div>
 
-            {/* Deterministic Triage Rule Rationale */}
-            {triageAssessment && (
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700 text-xs">
-                <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  <span>Căn cứ phân tầng thuật toán (Deterministic Triage)</span>
-                  <span className="font-mono text-slate-400">{triageAssessment.ruleVersion}</span>
-                </div>
-                <p className="text-slate-600 dark:text-slate-300 text-[11px] leading-relaxed">
-                  {triageAssessment.explanation}
-                </p>
-                {triageAssessment.triggers.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    {triageAssessment.triggers.map((t) => (
-                      <span
-                        key={t}
-                        className="px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-mono text-[10px] font-bold"
-                      >
-                        {t}
-                      </span>
-                    ))}
-                  </div>
-                )}
+            {/* Acute Finding Highlights */}
+            <div className="p-3 rounded-2xl bg-rose-50/50 dark:bg-rose-950/30 border border-rose-200/80 dark:border-rose-900/60 text-xs space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-rose-900 dark:text-rose-200">
+                  {activeReport?.symptom === "dyspnea" ? "Khó thở đợt mới khi nghỉ (Dyspnea at rest) — MỚI" : "Khó thở & Sốt mới ghi nhận"}
+                </span>
+                <span className="text-rose-700 font-bold font-mono">SpO2 91% ↓</span>
               </div>
-            )}
-
-            {/* Patient Reported PRO Data */}
-            <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs space-y-2">
-              <div className="font-bold text-slate-800 dark:text-slate-200 text-xs uppercase tracking-wider flex items-center gap-1.5">
-                <ActivityIcon size={14} className="text-indigo-600" />
-                <span>Dữ liệu báo cáo từ người bệnh (PRO)</span>
+              <div className="text-[11px] text-slate-600 dark:text-slate-300 grid grid-cols-2 gap-1 pt-1">
+                <span>• Thân nhiệt: <strong>38.1°C</strong></span>
+                <span>• Diễn tiến: <strong>Nặng hơn hôm qua</strong></span>
+                <span>• Độc tính nền: Tiêu chảy G2</span>
+                <span>• Thuốc đích: Osimertinib 80mg</span>
               </div>
-              <div className="grid grid-cols-2 gap-2 pt-1 text-xs">
-                <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-700/50">
-                  <span className="text-[10px] text-slate-500 block">Triệu chứng chính</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-100 capitalize">
-                    {activeReport.symptom === "diarrhea" ? "Tiêu chảy" : activeReport.symptom}
-                  </span>
-                </div>
-                <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-700/50">
-                  <span className="text-[10px] text-slate-500 block">Số lần đi ngoài</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-100">
-                    {activeReport.diarrheaEpisodes} lần / 24h
-                  </span>
-                </div>
-                <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-700/50">
-                  <span className="text-[10px] text-slate-500 block">Sốt</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-100">
-                    {activeReport.fever ? "Có sốt (>= 38.0°C)" : "Không sốt"}
-                  </span>
-                </div>
-                <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-700/50">
-                  <span className="text-[10px] text-slate-500 block">Phác đồ hiện tại</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-100">
-                    Osimertinib 80mg
-                  </span>
-                </div>
-              </div>
-
-              {activeReport.notes && (
-                <div className="pt-2 text-[11px] text-slate-600 dark:text-slate-300 italic border-t border-slate-100 dark:border-slate-700">
-                  &ldquo;{activeReport.notes}&rdquo;
-                </div>
-              )}
             </div>
 
-            {/* Structured Nurse Validation Action Form */}
-            {isPendingValidation ? (
-              <div className="p-4 rounded-xl bg-indigo-50/60 dark:bg-indigo-950/40 border-2 border-indigo-500/40 space-y-3">
-                <div className="flex items-center gap-2">
-                  <ShieldCheckIcon size={16} className="text-indigo-600 dark:text-indigo-400" />
-                  <h3 className="font-bold text-xs text-indigo-950 dark:text-indigo-200 uppercase tracking-wider">
-                    Xác minh & Điều phối Điều dưỡng
-                  </h3>
+            {/* Action Section */}
+            {isAnAssessed ? (
+              <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs flex items-center justify-between">
+                <div className="flex items-center gap-2 text-emerald-900 dark:text-emerald-200 font-semibold">
+                  <CheckCircle2Icon size={16} className="text-emerald-600" />
+                  <span>Đã hoàn tất đánh giá & chuyển BS Long</span>
                 </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-800 dark:text-slate-200 mb-1">
-                    Ghi chú lâm sàng & bối cảnh thực tế:
-                  </label>
-                  <textarea
-                    value={nurseContext}
-                    onChange={(e) => setNurseContext(e.target.value)}
-                    rows={3}
-                    className="w-full p-2.5 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    placeholder="Ghi nhận sinh tồn, tiếp xúc người bệnh qua điện thoại..."
-                  />
-                </div>
-
-                <div className="flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-indigo-100 dark:border-indigo-900">
-                  <div className="text-xs">
-                    <span className="font-bold text-slate-800 dark:text-slate-200 block">Yêu cầu Bác sĩ xem xét khẩn (Escalate)</span>
-                    <span className="text-[10px] text-slate-500">Chuyển trực tiếp vào hàng đợi bác sĩ điều trị</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setEscalationRequired(!escalationRequired)}
-                    className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors ${
-                      escalationRequired ? "bg-indigo-600" : "bg-slate-300 dark:bg-slate-600"
-                    }`}
-                  >
-                    <div
-                      className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
-                        escalationRequired ? "translate-x-5" : "translate-x-0"
-                      }`}
-                    />
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => handleValidate(false)}
-                    disabled={isMutating}
-                    className="py-2.5 px-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 text-slate-700 dark:text-slate-300 font-bold text-xs transition-all disabled:opacity-50"
-                  >
-                    Lưu xác minh chuẩn
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleValidate(true)}
-                    disabled={isMutating}
-                    className="py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-sm flex items-center justify-center gap-1.5 transition-all disabled:opacity-50"
-                  >
-                    <ShieldCheckIcon size={14} />
-                    <span>Xác minh & Chuyển Bác sĩ</span>
-                  </button>
-                </div>
+                <Link
+                  href={`/nurse/patient/${patient.id}/assessment`}
+                  className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
+                >
+                  Xem lại
+                </Link>
               </div>
-            ) : nurseValidation ? (
-              <div className="p-3.5 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 text-xs space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 font-bold text-emerald-900 dark:text-emerald-200">
-                    <CheckCircle2Icon size={14} className="text-emerald-600" />
-                    <span>Đã xác minh bởi {patient.primaryNurseName}</span>
-                  </div>
-                  <span className="font-mono text-[10px] text-slate-500">
-                    {new Date(nurseValidation.validatedAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}
-                  </span>
+            ) : (
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center justify-between text-[11px] text-amber-700 dark:text-amber-300">
+                  <span>Chưa hoàn tất: Bảng kiểm tra hô hấp (Respiratory assessment)</span>
                 </div>
-                <p className="text-slate-700 dark:text-slate-300 text-[11px] leading-relaxed">
-                  {nurseValidation.context}
-                </p>
-                {nurseValidation.escalationRequired && (
-                  <div className="pt-2 flex items-center justify-between border-t border-emerald-200/60 dark:border-emerald-900">
-                    <span className="text-[10px] font-bold text-rose-700 dark:text-rose-300 uppercase">
-                      Đã kích hoạt chuyển khẩn Bác sĩ
-                    </span>
-                    <Link
-                      href={`/doctor/review/${activeReport.id}`}
-                      className="inline-flex items-center gap-1 text-xs font-bold text-indigo-700 dark:text-indigo-300 hover:underline"
-                    >
-                      <span>Mở màn hình Bác sĩ</span>
-                      <ChevronRightIcon size={13} />
-                    </Link>
-                  </div>
-                )}
+                <Link
+                  href={`/nurse/patient/${patient.id}/assessment`}
+                  className="w-full py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-bold text-xs shadow-xs flex items-center justify-center gap-2 transition-all block text-center"
+                >
+                  <ShieldCheckIcon size={16} />
+                  <span>Đánh giá ngay</span>
+                </Link>
               </div>
-            ) : null}
+            )}
           </div>
-        </section>
-      ) : (
-        <section className="bg-white dark:bg-slate-900 rounded-2xl p-8 border border-slate-200/80 dark:border-slate-800 text-center space-y-3">
-          <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto">
-            <CheckCircle2Icon size={24} />
+        </div>
+
+        {/* Other Context Queue Items */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-2 opacity-80">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="font-bold text-sm text-slate-800 dark:text-slate-200">Trần Thị Bích (Nữ, 62t)</span>
+              <p className="text-xs text-slate-500">HSBA-2026-8102 · Osimertinib C2D21 · Giảm bạch cầu G1</p>
+            </div>
+            <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold">
+              Xem hôm nay
+            </span>
           </div>
-          <h3 className="font-bold text-sm text-slate-800 dark:text-white">
-            Hàng đợi trống
-          </h3>
-          <p className="text-xs text-slate-500 max-w-xs mx-auto">
-            Chưa có báo cáo triệu chứng mới từ người bệnh cần xử lý.
+          <p className="text-[11px] text-slate-600 dark:text-slate-400">
+            Kết quả CTM: Neutrophil 1.6 x10^9/L. Đang theo dõi ăn uống và thân nhiệt.
           </p>
-          <Link
-            href="/patient/today"
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 text-white font-bold text-xs"
-          >
-            <span>Tạo báo cáo mẫu từ Người bệnh</span>
-            <ChevronRightIcon size={14} />
-          </Link>
-        </section>
-      )}
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-2 opacity-70">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="font-bold text-sm text-slate-800 dark:text-slate-200">Lê Hoàng Nam (Nam, 54t)</span>
+              <p className="text-xs text-slate-500">HSBA-2026-7734 · Osimertinib C4D01 · Tái khám định kỳ</p>
+            </div>
+            <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+              Ổn định
+            </span>
+          </div>
+          <p className="text-[11px] text-slate-600 dark:text-slate-400">
+            Không có triệu chứng mới. Đã hoàn tất cấp phát thuốc chu kỳ 4.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

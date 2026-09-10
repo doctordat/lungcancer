@@ -8,7 +8,13 @@ const doctorSignOffInputSchema = z.object({
   expectedVersion: z.number().int().min(0),
   outcome: z.enum(["care_plan_update", "no_plan_change", "needs_information"]),
   rationale: z.string().trim().min(1, "Vui lòng nhập giải thích / căn cứ lâm sàng của bác sĩ"),
-  newPlanSummary: z.string().trim().optional(),
+  differentials: z.array(z.string()).optional(),
+  investigationsOrdered: z.array(z.string()).optional(),
+  clinicalActions: z.string().trim().optional(),
+  patientInstructionsPlain: z.string().trim().optional(),
+  monitoring: z.string().trim().optional(),
+  followUpAssignedTo: z.string().trim().optional(),
+  followUpTime: z.string().trim().optional(),
   doctorName: z.string().optional(),
 });
 

@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import type { ClinicalStateBundle } from "@/server/store";
-import type { SymptomKind } from "@/domain/schemas";
+import type { SymptomKind, DyspneaTrigger, Progression } from "@/domain/schemas";
 
 interface ClinicalContextType {
   state: ClinicalStateBundle | null;
@@ -10,14 +10,43 @@ interface ClinicalContextType {
   isMutating: boolean;
   error: string | null;
   refreshState: () => Promise<void>;
-  submitReport: (input: { symptom: SymptomKind; diarrheaEpisodes: number; fever: boolean; notes: string }) => Promise<string>;
-  validateReport: (input: { reportId: string; expectedVersion: number; escalationRequired: boolean; context: string }) => Promise<void>;
+  submitReport: (input: {
+    symptom: SymptomKind;
+    dyspneaTrigger?: DyspneaTrigger;
+    progression?: Progression;
+    spo2?: number | null;
+    temperature?: number | null;
+    diarrheaEpisodes?: number;
+    fever?: boolean;
+    notes?: string;
+  }) => Promise<string>;
+  validateReport: (input: {
+    reportId: string;
+    expectedVersion: number;
+    repeatSpo2?: number | null;
+    respiratoryRate?: number | null;
+    temperature?: number | null;
+    dyspneaSeverity?: "none" | "mild" | "moderate" | "at_rest";
+    cough?: boolean;
+    chestPain?: boolean;
+    syncope?: boolean;
+    cyanosis?: boolean;
+    onsetProgression?: string;
+    escalationRequired: boolean;
+    context: string;
+  }) => Promise<void>;
   signOffDecision: (input: {
     reportId: string;
     expectedVersion: number;
     outcome: "care_plan_update" | "no_plan_change" | "needs_information";
     rationale: string;
-    newPlanSummary?: string;
+    differentials?: string[];
+    investigationsOrdered?: string[];
+    clinicalActions?: string;
+    patientInstructionsPlain?: string;
+    monitoring?: string;
+    followUpAssignedTo?: string;
+    followUpTime?: string;
     doctorName?: string;
   }) => Promise<void>;
   acknowledgeCarePlan: (input: { carePlanVersionId: string; expectedVersion: number }) => Promise<void>;
@@ -70,7 +99,7 @@ export function ClinicalProvider({ children }: { children: React.ReactNode }) {
     load();
     const interval = setInterval(() => {
       fetchState();
-    }, 3000);
+    }, 2000);
     return () => {
       mounted = false;
       clearInterval(interval);
@@ -79,9 +108,13 @@ export function ClinicalProvider({ children }: { children: React.ReactNode }) {
 
   const submitReport = async (input: {
     symptom: SymptomKind;
-    diarrheaEpisodes: number;
-    fever: boolean;
-    notes: string;
+    dyspneaTrigger?: DyspneaTrigger;
+    progression?: Progression;
+    spo2?: number | null;
+    temperature?: number | null;
+    diarrheaEpisodes?: number;
+    fever?: boolean;
+    notes?: string;
   }): Promise<string> => {
     setIsMutating(true);
     setError(null);
@@ -109,6 +142,15 @@ export function ClinicalProvider({ children }: { children: React.ReactNode }) {
   const validateReport = async (input: {
     reportId: string;
     expectedVersion: number;
+    repeatSpo2?: number | null;
+    respiratoryRate?: number | null;
+    temperature?: number | null;
+    dyspneaSeverity?: "none" | "mild" | "moderate" | "at_rest";
+    cough?: boolean;
+    chestPain?: boolean;
+    syncope?: boolean;
+    cyanosis?: boolean;
+    onsetProgression?: string;
     escalationRequired: boolean;
     context: string;
   }): Promise<void> => {
@@ -139,7 +181,13 @@ export function ClinicalProvider({ children }: { children: React.ReactNode }) {
     expectedVersion: number;
     outcome: "care_plan_update" | "no_plan_change" | "needs_information";
     rationale: string;
-    newPlanSummary?: string;
+    differentials?: string[];
+    investigationsOrdered?: string[];
+    clinicalActions?: string;
+    patientInstructionsPlain?: string;
+    monitoring?: string;
+    followUpAssignedTo?: string;
+    followUpTime?: string;
     doctorName?: string;
   }): Promise<void> => {
     setIsMutating(true);

@@ -26,26 +26,21 @@ export function RoleNav() {
 
   const activeRole = getActiveRole();
   const reportStatus = state?.activeReport?.status;
-  const unreadCarePlan =
-    state?.activeReport?.status === "patient_notified" ||
-    (state?.carePlanVersions && state.carePlanVersions.length > 1 && !state?.acknowledgements?.some(a => a.carePlanVersionId === state.activeCarePlan.id));
+  const isUrgent = state?.triageAssessment?.priority === "urgent" || state?.activeReport?.symptom === "dyspnea";
 
   return (
     <>
-      {/* Top Ambient Bar */}
-      <header className="sticky top-0 z-40 backdrop-blur-md bg-white/90 dark:bg-slate-900/90 border-b border-slate-200 dark:border-slate-800 transition-colors">
+      {/* Top Header */}
+      <header className="sticky top-0 z-40 backdrop-blur-md bg-white/95 dark:bg-slate-900/95 border-b border-slate-200 dark:border-slate-800">
         <div className="max-w-md mx-auto px-4 py-2.5 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Link href="/" className="flex items-center gap-2 group">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform">
-                <HeartPulseIcon size={18} />
+            <Link href="/" className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-xl bg-emerald-600 flex items-center justify-center text-white shadow-xs">
+                <HeartPulseIcon size={16} />
               </div>
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="font-bold text-sm tracking-tight text-slate-900 dark:text-white">LungCare</span>
-                  <span className="text-[10px] font-semibold tracking-wider px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">V3</span>
-                </div>
-                <span className="text-[11px] text-slate-500 font-medium block -mt-0.5">Connected Oncology</span>
+              <div className="flex items-baseline gap-1.5">
+                <span className="font-bold text-sm tracking-tight text-slate-900 dark:text-white">LungCare</span>
+                <span className="text-[10px] font-semibold text-slate-400">V4 Gate A</span>
               </div>
             </Link>
           </div>
@@ -53,140 +48,107 @@ export function RoleNav() {
           <div className="flex items-center gap-1.5">
             <button
               onClick={() => setShowAudit(true)}
-              className="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 transition-colors flex items-center gap-1.5"
-              title="Xem lịch sử kiểm toán"
+              className="px-2 py-1 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex items-center gap-1"
+              title="Xem nhật ký kiểm toán"
             >
               <HistoryIcon size={14} />
-              <span className="hidden sm:inline">Audit</span>
-              {state?.auditEvents && state.auditEvents.length > 0 && (
-                <span className="w-4 h-4 rounded-full bg-slate-200 dark:bg-slate-700 text-[10px] flex items-center justify-center font-bold">
-                  {state.auditEvents.length}
-                </span>
+              <span className="text-[11px]">Audit</span>
+              {state?.auditEvents && (
+                <span className="text-[10px] text-slate-400 font-mono">({state.auditEvents.length})</span>
               )}
             </button>
 
             <button
               onClick={() => resetState()}
               className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-              title="Khôi phục trạng thái ban đầu"
+              title="Khôi phục trạng thái mặc định"
             >
-              <RefreshCwIcon size={15} />
+              <RefreshCwIcon size={14} />
             </button>
           </div>
         </div>
 
-        {/* Dynamic Role Switcher Navigation (Mobile Segmented Control) */}
-        <div className="max-w-md mx-auto px-3 pb-2.5">
+        {/* Dynamic Role Switcher Tabs */}
+        <div className="max-w-md mx-auto px-3 pb-2">
           <div className="grid grid-cols-3 p-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-semibold">
-            {/* Patient Role */}
+            {/* Patient */}
             <Link
               href="/patient/today"
-              className={`relative flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg transition-all ${
+              className={`relative flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg transition-all ${
                 activeRole === "patient"
-                  ? "bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 shadow-sm font-bold"
+                  ? "bg-white dark:bg-slate-900 text-emerald-700 dark:text-emerald-400 shadow-xs font-bold"
                   : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
               }`}
             >
-              <HeartPulseIcon size={15} className={activeRole === "patient" ? "text-emerald-600" : "text-slate-400"} />
-              <span>Người bệnh</span>
-              {unreadCarePlan && (
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse absolute top-1.5 right-1.5" />
+              <HeartPulseIcon size={14} className={activeRole === "patient" ? "text-emerald-600" : "text-slate-400"} />
+              <span>Bác An</span>
+              {reportStatus === "patient_notified" && (
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse absolute top-1 right-1" />
               )}
             </Link>
 
-            {/* Nurse Role */}
+            {/* Nurse */}
             <Link
               href="/nurse/queue"
-              className={`relative flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg transition-all ${
+              className={`relative flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg transition-all ${
                 activeRole === "nurse"
-                  ? "bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-400 shadow-sm font-bold"
+                  ? "bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-400 shadow-xs font-bold"
                   : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
               }`}
             >
-              <ShieldCheckIcon size={15} className={activeRole === "nurse" ? "text-indigo-600" : "text-slate-400"} />
-              <span>Điều dưỡng</span>
+              <ShieldCheckIcon size={14} className={activeRole === "nurse" ? "text-indigo-600" : "text-slate-400"} />
+              <span>ĐD. Mai</span>
               {reportStatus === "submitted" && (
-                <span className="px-1 py-0.2 text-[9px] rounded-full bg-rose-500 text-white font-bold absolute top-1 right-1">
+                <span className="px-1.5 py-0.2 text-[9px] rounded-full bg-rose-500 text-white font-bold absolute top-0.5 right-1">
                   1
                 </span>
               )}
             </Link>
 
-            {/* Doctor Role */}
+            {/* Doctor */}
             <Link
-              href={state?.activeReport ? `/doctor/review/${state.activeReport.id}` : "/doctor/review/demo"}
-              className={`relative flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg transition-all ${
+              href="/doctor/command"
+              className={`relative flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg transition-all ${
                 activeRole === "doctor"
-                  ? "bg-white dark:bg-slate-900 text-sky-700 dark:text-sky-400 shadow-sm font-bold"
+                  ? "bg-white dark:bg-slate-900 text-sky-700 dark:text-sky-400 shadow-xs font-bold"
                   : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
               }`}
             >
-              <StethoscopeIcon size={15} className={activeRole === "doctor" ? "text-sky-600" : "text-slate-400"} />
-              <span>Bác sĩ</span>
-              {(reportStatus === "escalated" || reportStatus === "nurse_validated") && (
-                <span className="px-1 py-0.2 text-[9px] rounded-full bg-amber-500 text-white font-bold absolute top-1 right-1">
+              <StethoscopeIcon size={14} className={activeRole === "doctor" ? "text-sky-600" : "text-slate-400"} />
+              <span>BS. Long</span>
+              {isUrgent && (reportStatus === "escalated" || reportStatus === "submitted") && (
+                <span className="px-1.5 py-0.2 text-[9px] rounded-full bg-rose-500 text-white font-bold absolute top-0.5 right-1">
                   !
                 </span>
               )}
             </Link>
           </div>
         </div>
-
-        {/* Global Live Status Banner */}
-        {state?.activeReport && (
-          <div className="bg-slate-50 dark:bg-slate-900/60 border-t border-slate-200/60 dark:border-slate-800/60 px-4 py-1.5 text-[11px] flex items-center justify-between max-w-md mx-auto">
-            <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-              <span className="font-semibold">Báo cáo hiện tại:</span>
-              <span className="font-mono text-slate-500 truncate max-w-[120px]">{state.activeReport.id.slice(0, 8)}...</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="font-medium text-slate-500">Trạng thái:</span>
-              <span className={`px-2 py-0.5 rounded font-bold text-[10px] uppercase tracking-wider ${
-                reportStatus === "submitted" ? "bg-amber-100 text-amber-800" :
-                reportStatus === "nurse_validated" ? "bg-indigo-100 text-indigo-800" :
-                reportStatus === "escalated" ? "bg-rose-100 text-rose-800" :
-                reportStatus === "doctor_reviewed" ? "bg-sky-100 text-sky-800" :
-                reportStatus === "signed" ? "bg-teal-100 text-teal-800" :
-                reportStatus === "patient_notified" ? "bg-emerald-100 text-emerald-800" :
-                reportStatus === "acknowledged" ? "bg-emerald-600 text-white" :
-                "bg-slate-100 text-slate-800"
-              }`}>
-                {reportStatus}
-              </span>
-            </div>
-          </div>
-        )}
       </header>
 
-      {/* Audit History Drawer */}
+      {/* Audit Drawer */}
       {showAudit && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/50 backdrop-blur-xs animate-fadeIn">
+        <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-xs animate-fadeIn">
           <div className="w-full max-w-md bg-white dark:bg-slate-900 h-full overflow-y-auto shadow-2xl p-5 flex flex-col justify-between">
             <div>
-              <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-700 dark:text-slate-300">
-                    <HistoryIcon size={16} />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-sm text-slate-900 dark:text-white">Lịch sử Kiểm toán Lâm sàng</h3>
-                    <p className="text-[11px] text-slate-500">Immutable Audit Trail (V3 Specification)</p>
-                  </div>
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                <div>
+                  <h3 className="font-bold text-sm text-slate-900 dark:text-white">Lịch sử Chuyển trạng thái Lâm sàng</h3>
+                  <p className="text-[11px] text-slate-500">Immutable Audit Trail (V4 Specification)</p>
                 </div>
                 <button
                   onClick={() => setShowAudit(false)}
-                  className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center text-sm font-bold"
+                  className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center text-xs font-bold"
                 >
                   ✕
                 </button>
               </div>
 
-              <div className="mt-4 space-y-3">
+              <div className="mt-4 space-y-2.5">
                 {state?.auditEvents && state.auditEvents.length > 0 ? (
                   state.auditEvents.map((evt, idx) => (
                     <div key={evt.id || idx} className="p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 text-xs">
-                      <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center justify-between mb-1">
                         <div className="flex items-center gap-1.5">
                           <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${
                             evt.actorRole === "patient" ? "bg-emerald-100 text-emerald-800" :
@@ -196,7 +158,7 @@ export function RoleNav() {
                           }`}>
                             {evt.actorRole}
                           </span>
-                          <span className="font-bold text-slate-800 dark:text-slate-200">
+                          <span className="font-bold text-slate-800 dark:text-slate-200 text-[11px]">
                             {evt.fromStatus} → {evt.toStatus}
                           </span>
                         </div>
@@ -207,7 +169,7 @@ export function RoleNav() {
                       <p className="text-slate-600 dark:text-slate-300 text-[11px] leading-relaxed">
                         {evt.reason}
                       </p>
-                      <div className="mt-1.5 text-[10px] text-slate-400 font-mono flex items-center justify-between">
+                      <div className="mt-1 text-[10px] text-slate-400 font-mono flex items-center justify-between">
                         <span>{new Date(evt.createdAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</span>
                         <span>{evt.id.slice(0, 8)}</span>
                       </div>
@@ -222,7 +184,7 @@ export function RoleNav() {
             <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
               <button
                 onClick={() => setShowAudit(false)}
-                className="w-full py-2.5 rounded-xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-bold text-xs"
+                className="w-full py-2 rounded-xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-bold text-xs"
               >
                 Đóng
               </button>
