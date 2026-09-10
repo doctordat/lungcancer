@@ -91,6 +91,7 @@ export const patientAcknowledgementSchema = z.object({
 
 export type ActorRole = z.infer<typeof actorRoleSchema>;
 export type WorkflowStatus = z.infer<typeof workflowStatusSchema>;
+export type SymptomKind = z.infer<typeof symptomKindSchema>;
 export type SymptomReport = z.infer<typeof symptomReportSchema>;
 export type TriageAssessment = z.infer<typeof triageAssessmentSchema>;
 export type NurseValidation = z.infer<typeof nurseValidationSchema>;

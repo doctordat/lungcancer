@@ -40,6 +40,7 @@ const rules: readonly TransitionRule[] = [
   { from: "submitted", to: "nurse_validated", roles: ["nurse"] },
   { from: "submitted", to: "needs_information", roles: ["nurse"] },
   { from: "nurse_validated", to: "escalated", roles: ["nurse"] },
+  { from: "nurse_validated", to: "doctor_reviewed", roles: ["doctor"] },
   { from: "escalated", to: "doctor_reviewed", roles: ["doctor"] },
   { from: "doctor_reviewed", to: "signed", roles: ["doctor"] },
   { from: "doctor_reviewed", to: "needs_information", roles: ["doctor"] },

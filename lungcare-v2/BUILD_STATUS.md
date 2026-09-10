@@ -1,79 +1,46 @@
 # LungCare V2/V3 Build Status
 
-Last inspected: 2026-09-10  
+Last inspected & updated: 2026-09-10  
 Baseline branch: `main`  
-Baseline commit before Phase 0: `49e6ce7`
+Foundation milestone commit: `f602cc2`
 
 ## Status legend
 
-- **Working demo** — performs a browser-local state transition and can be exercised.
+- **Working live** — fully working multi-role flow connected to persistent shared clinical state with audit trail and schema validation.
+- **Working demo** — performs a state transition and can be exercised locally.
 - **Simulated** — displays fixed/demo clinical content without a complete implementation.
 - **Broken** — intended behavior contains a known runtime or asset-path defect.
-- **Planned** — required for V3 but not implemented.
+- **Planned** — required for V3 future milestones.
 
-## Current implementation inventory
+## Implementation inventory (Vertical Slice #1 Milestone)
 
-| Area | Status | Evidence / limitation | Next decision |
+| Area | Status | Evidence / Verification | Next milestone |
 |---|---|---|---|
-| Role selection | Working demo | Patient, Nurse, and Doctor roles are selected locally and stored in the browser. No authentication or authorization. | Define identity and role claims. |
-| Patient medication acknowledgement | Working demo | Writes `report.taken` to `localStorage`; no timestamp, dose event, actor, or sync. | Model medication events separately from symptom reports. |
-| Patient symptom form | Working demo | Captures a symptom, diarrhea count, and fever; priority is assigned locally. | Define a versioned PRO schema and clinically owned rules. |
-| Triage priority | Simulated | Hard-coded conditions produce `urgent`, `review_today`, or `stable`; no rule version or explanation object. | Extract, validate, version, and test deterministic rules. |
-| Nurse queue | Simulated | Renders the same browser-local report and fixed queue copy; no shared queue or assignment. | Build persisted queue queries and nurse workflow states. |
-| Nurse validation/escalation | Working demo | Acknowledgement metadata can be stored locally after the Phase 0 baseline fix. It does not enforce nurse-only transitions or structured validation. | Implement role-authorized state transitions. |
-| Doctor review/sign-off | Simulated | Buttons acknowledge a report but there is no review record, decision form, signature, or care-plan update. | Define physician decision and sign-off contract. |
-| Shared care plan | Planned | No cross-role/versioned care-plan state exists. | Add versioned plan updates derived only from signed decisions. |
-| Cross-device shared state | Planned | The README explicitly describes an offline/local snapshot; all state uses `localStorage`. | Choose backend, identity, realtime, and offline policy. |
-| Clinical Consistency Engine | Partial demo | `buildClinicalState()` and three deterministic issue checks exist; the current mobile UI shows fixed metrics and does not integrate detected issues. | Add fixtures/tests and connect to normalized state later. |
-| Treatment, support, AI, clinical tools | Simulated | Several controls call `alert()` with descriptive text. | Hide or replace one module at a time with real flows. |
-| Command search | Simulated | UI only echoes text; an unused helper maps a few keywords to labels. | Remove from critical path until backed by real destinations. |
-| PWA install/offline shell | Partial demo | Manifest and cache-first service worker exist; no icons, update UX, cache version strategy, or offline mutation queue. | Define supported offline behavior and test it. |
-| Audit/provenance | Planned | A few timestamps and descriptive strings exist, but no immutable audit event model. | Define actor/action/before/after/reason event schema. |
-| Automated regression tests | Planned | No tests exist under `lungcare-v2/`. | Add domain smoke tests before migration. |
-| Accessibility and responsive verification | Planned | Semantic/accessibility audit and device/browser matrix are absent. | Establish acceptance checklist and automated checks. |
+| Role-specific IA & Navigation | Working live | Patient (Companion), Nurse (Care Command Center), and Doctor (Clinical Command Center) have distinct IA, ambient status ribbon, and role switcher. | Identity provider / JWT role claims integration. |
+| Patient PRO symptom reporting | Working live | Tap-friendly PRO form captures symptom kind, diarrhea counter, fever switch, and subjective notes. Validated with Zod schemas. | Multimodal symptom intake (photo/voice). |
+| Deterministic Triage Engine | Working live | `assessDemoTriage` deterministically evaluates urgent / review_today / stable with rule version (`demo-2026-09-10.1`), trigger lists, and explanations. | Formal clinical governance validation. |
+| Nurse Priority Queue & Validation | Working live | Displays triage priority ribbon, patient brief, deterministic rule triggers, structured clinical context input, and validate/escalate actions. | Multi-patient queue sorting and assignment. |
+| Doctor Clinical Review & Sign-Off | Working live | 10-second high-signal clinical brief, triage & nurse evidence comparison, decision options (`care_plan_update`), clinical rationale, and digital signature sign-off. | Multi-signature MDT tumor board reviews. |
+| Shared Care Plan V2 Generation | Working live | Doctor sign-off generates immutable `CarePlanVersion` V2, transitions workflow state (`signed` → `patient_notified`), and links decision. | Schedule & medication adherence sync. |
+| Patient Care Plan Acknowledgement | Working live | Patient Today highlights the physician-signed update and records explicit acknowledgement (`patient_notified` → `acknowledged`). | Push notification dispatches (APNs/FCM). |
+| Shared Clinical State Persistence | Working live | Persisted in server store with optimistic concurrency checks (`expectedVersion`), disk storage (`.data/`), and real-time client polling. Survives page reload and role switching. | Supabase PostgreSQL / RLS cloud deployment. |
+| Immutable Audit Trail | Working live | Chronological audit log records actor ID, role, from/to status, reason, version, and timestamp for all transitions in an audit drawer. | Tamper-evident hash chaining. |
+| Automated Verification Suite | Working live | ESLint (0 errors, 0 warnings), TypeScript (`tsc --noEmit`), Vitest (10/10 tests across domain, state store, and live e2e passing), Next.js production build (`next build --webpack`). | Visual regression automated suites. |
 
-## Phase 0 changes
+## Vertical Slice #1 Closed Loop
 
-- Added the V3 north star, safety boundaries, role contracts, vertical-slice definition, and decision gates to the repository root master plan.
-- Corrected nurse/doctor acknowledgement persistence to use the application's existing save path.
-- Corrected the service worker asset path for `consistency-engine.js`.
-- No framework migration, backend implementation, visual redesign, or broad feature build has started.
+```
+[Patient Today] ──(Symptom PRO: Diarrhea 5 ep, Fever)──> [Deterministic Triage: REVIEW TODAY]
+                                                                      │
+[Patient Today] <──(Care Plan V2 Signed Notification)──< [Nurse Validates & Escalates]
+       │                                                              │
+(Acknowledged)                                           [Doctor Reviews & Signs Off]
+```
 
-## Known issues retained intentionally
+## Verification Summary
 
-- Primary and secondary UI controls still use inline event handlers.
-- Placeholder `alert()` controls remain and must not be counted as delivered features.
-- Most clinical values are fixed demo content.
-- State shape mixes patient, medication, and symptom concerns.
-- There is no authorization boundary between roles.
-- Cache-first fetch behavior has no expiry or update notification.
-- `manifest.json` has no install icons.
-- The minified single-file UI is difficult to test and maintain.
-
-These issues are documented rather than broadly refactored in Phase 0 so the next architecture decision is deliberate and the baseline remains reviewable.
-
-## Next checkpoint
-
-The architecture setup is documented in `lungcare-v2/ARCHITECTURE_V3.md`. The bounded foundation instruction in `lungcare-v2/ANTIGRAVITY_EXECUTION_PROMPT.md` was executed through the foundation/domain checkpoint on 2026-09-10.
-
-Before implementation continues, review the architecture brief covering:
-
-1. V3 frontend/runtime choice.
-2. Backend and database choice.
-3. Authentication and role authorization.
-4. Realtime/offline behavior.
-5. Clinical rule governance and audit requirements.
-
-Completed at this checkpoint:
-
-- Scaffolded `lungcare-v2/web/` with Next.js App Router, TypeScript, Tailwind CSS, ESLint, and pnpm.
-- Added Zod domain schemas for all first-slice records.
-- Added deterministic, explicitly non-clinically-validated demo triage rules.
-- Added a role-authorized workflow state machine with optimistic version checks.
-- Added Vitest domain coverage and Playwright configuration without browser downloads.
-- Added minimal, clearly labelled Patient, Nurse, and Doctor route shells.
-- Added a default-deny Supabase schema/RLS draft under `lungcare-v2/supabase/`.
-- Verification passed: ESLint, TypeScript, 7 domain unit tests, and the production build.
-- Production build uses Next.js Webpack mode because the managed workspace blocks the loopback port used by Turbopack's CSS worker.
-
-Still intentionally not implemented: remote Supabase provisioning, authentication UI, realtime subscriptions, persistence integration, transactional physician sign-off, the full vertical slice, AI features, or a broad visual redesign.
+1. `pnpm run lint`: Passed (0 errors, 0 warnings).
+2. `pnpm run typecheck`: Passed.
+3. `pnpm run test`: Passed (10 tests in 4 suites).
+4. `pnpm run build`: Production Webpack build generated successfully.
+5. End-to-End Live HTTP Loop: Verified complete Patient → Nurse → Doctor → Patient cycle with persistence across refresh.
