@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { transitionWorkflow, WorkflowTransitionError, type WorkflowAggregate } from "./workflow";
+import type { WorkflowStatus } from "./schemas";
 
 const ids = {
   report: "00000000-0000-4000-8000-000000000001",
@@ -17,7 +18,7 @@ const submitted: WorkflowAggregate = {
   updatedAt: "2026-09-10T06:00:00.000Z",
 };
 
-function request(actorRole: "patient" | "nurse" | "doctor", toStatus: "nurse_validated" | "signed", expectedVersion = 1) {
+function request(actorRole: "patient" | "nurse" | "doctor" | "system", toStatus: WorkflowStatus, expectedVersion = 1) {
   return {
     actorId: ids.actor,
     actorRole,
@@ -25,14 +26,21 @@ function request(actorRole: "patient" | "nurse" | "doctor", toStatus: "nurse_val
     reason: "Synthetic workflow test.",
     expectedVersion,
     occurredAt: "2026-09-10T06:05:00.000Z",
-  } as const;
+  };
 }
 
 describe("workflow state machine", () => {
-  it("allows a nurse to validate a submitted report", () => {
-    expect(transitionWorkflow(submitted, request("nurse", "nurse_validated"))).toMatchObject({
-      status: "nurse_validated",
+  it("allows a nurse to assess and escalate a submitted report", () => {
+    const assessed = transitionWorkflow(submitted, request("nurse", "nurse_assessed"));
+    expect(assessed).toMatchObject({
+      status: "nurse_assessed",
       version: 2,
+    });
+
+    const escalated = transitionWorkflow(assessed, request("nurse", "escalated", 2));
+    expect(escalated).toMatchObject({
+      status: "escalated",
+      version: 3,
     });
   });
 
@@ -46,15 +54,15 @@ describe("workflow state machine", () => {
   });
 
   it("rejects an unauthorized role", () => {
-    expect(() => transitionWorkflow(submitted, request("patient", "nurse_validated"))).toThrowError(WorkflowTransitionError);
+    expect(() => transitionWorkflow(submitted, request("patient", "nurse_assessed"))).toThrowError(WorkflowTransitionError);
     try {
-      transitionWorkflow(submitted, request("patient", "nurse_validated"));
+      transitionWorkflow(submitted, request("patient", "nurse_assessed"));
     } catch (error) {
       expect(error).toMatchObject({ code: "UNAUTHORIZED_ROLE" });
     }
   });
 
-  it("executes the full vertical slice transition loop", () => {
+  it("executes the full Gate B1 closed loop transition flow", () => {
     // 1. Patient draft -> submitted
     const s1 = transitionWorkflow(
       { ...submitted, status: "draft", version: 0 },
@@ -63,38 +71,38 @@ describe("workflow state machine", () => {
     expect(s1.status).toBe("submitted");
     expect(s1.version).toBe(1);
 
-    // 2. Nurse submitted -> nurse_validated
+    // 2. Nurse submitted -> nurse_assessed
     const s2 = transitionWorkflow(
       s1,
-      { actorId: ids.actor, actorRole: "nurse", toStatus: "nurse_validated", reason: "Vitals confirmed", expectedVersion: 1, occurredAt: "2026-09-10T06:05:00.000Z" }
+      { actorId: ids.actor, actorRole: "nurse", toStatus: "nurse_assessed", reason: "Vitals confirmed", expectedVersion: 1, occurredAt: "2026-09-10T06:05:00.000Z" }
     );
-    expect(s2.status).toBe("nurse_validated");
+    expect(s2.status).toBe("nurse_assessed");
 
-    // 3. Nurse nurse_validated -> escalated
+    // 3. Nurse nurse_assessed -> escalated
     const s3 = transitionWorkflow(
       s2,
-      { actorId: ids.actor, actorRole: "nurse", toStatus: "escalated", reason: "Grade 2 diarrhea, requires physician review", expectedVersion: 2, occurredAt: "2026-09-10T06:06:00.000Z" }
+      { actorId: ids.actor, actorRole: "nurse", toStatus: "escalated", reason: "Acute dyspnea, SpO2 91%, requires physician review", expectedVersion: 2, occurredAt: "2026-09-10T06:06:00.000Z" }
     );
     expect(s3.status).toBe("escalated");
 
-    // 4. Doctor escalated -> doctor_reviewed
+    // 4. Doctor escalated -> doctor_reviewing
     const s4 = transitionWorkflow(
       s3,
-      { actorId: ids.actor, actorRole: "doctor", toStatus: "doctor_reviewed", reason: "Reviewed triage and nurse notes", expectedVersion: 3, occurredAt: "2026-09-10T06:10:00.000Z" }
+      { actorId: ids.actor, actorRole: "doctor", toStatus: "doctor_reviewing", reason: "Doctor reviewing clinical evidence", expectedVersion: 3, occurredAt: "2026-09-10T06:10:00.000Z" }
     );
-    expect(s4.status).toBe("doctor_reviewed");
+    expect(s4.status).toBe("doctor_reviewing");
 
-    // 5. Doctor doctor_reviewed -> signed
+    // 5. Doctor doctor_reviewing -> signed
     const s5 = transitionWorkflow(
       s4,
-      { actorId: ids.actor, actorRole: "doctor", toStatus: "signed", reason: "Hold TKI 48h and start Loperamide", expectedVersion: 4, occurredAt: "2026-09-10T06:12:00.000Z" }
+      { actorId: ids.actor, actorRole: "doctor", toStatus: "signed", reason: "Hold TKI and order urgent HRCT", expectedVersion: 4, occurredAt: "2026-09-10T06:12:00.000Z" }
     );
     expect(s5.status).toBe("signed");
 
     // 6. System signed -> patient_notified
     const s6 = transitionWorkflow(
       s5,
-      { actorId: ids.actor, actorRole: "system", toStatus: "patient_notified", reason: "Notification dispatched", expectedVersion: 5, occurredAt: "2026-09-10T06:12:01.000Z" }
+      { actorId: ids.actor, actorRole: "system", toStatus: "patient_notified", reason: "Care plan notification dispatched", expectedVersion: 5, occurredAt: "2026-09-10T06:12:01.000Z" }
     );
     expect(s6.status).toBe("patient_notified");
 

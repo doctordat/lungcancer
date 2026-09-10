@@ -3,6 +3,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import {
   schemaVersion,
+  sanitizeSymptomInput,
   type SymptomReport,
   type TriageAssessment,
   type NurseValidation,
@@ -16,7 +17,7 @@ import {
   type Progression,
 } from "../domain/schemas";
 import { assessDemoTriage } from "../domain/triage";
-import { transitionWorkflow } from "../domain/workflow";
+import { transitionWorkflow, WorkflowTransitionError } from "../domain/workflow";
 
 export interface PatientProfile {
   id: string;
@@ -253,15 +254,18 @@ export function submitSymptomReport(input: {
   const reportId = crypto.randomUUID();
   const triageId = crypto.randomUUID();
 
+  // Strict symptom state isolation
+  const sanitized = sanitizeSymptomInput(input);
+
   // Run deterministic triage engine
   const triageResult = assessDemoTriage({
-    symptom: input.symptom,
-    dyspneaTrigger: input.dyspneaTrigger,
-    progression: input.progression,
-    spo2: input.spo2,
-    temperature: input.temperature,
-    diarrheaEpisodes: input.diarrheaEpisodes || 0,
-    fever: input.fever || (input.temperature !== undefined && input.temperature !== null && input.temperature >= 38.0),
+    symptom: sanitized.symptom,
+    dyspneaTrigger: sanitized.dyspneaTrigger,
+    progression: sanitized.progression,
+    spo2: sanitized.spo2,
+    temperature: sanitized.temperature,
+    diarrheaEpisodes: sanitized.diarrheaEpisodes,
+    fever: sanitized.fever,
   });
 
   const triageAssessment: TriageAssessment = {
@@ -291,7 +295,7 @@ export function submitSymptomReport(input: {
     actorId: PATIENT_ID,
     actorRole: "patient",
     toStatus: "submitted",
-    reason: `Người bệnh gửi kiểm tra triệu chứng: ${input.symptom === "dyspnea" ? "Khó thở đợt mới" : input.symptom}. Phân tầng ưu tiên: ${triageResult.priority.toUpperCase()}`,
+    reason: `Người bệnh gửi kiểm tra triệu chứng: ${sanitized.symptom === "dyspnea" ? "Khó thở đợt mới" : sanitized.symptom}. Phân tầng ưu tiên: ${triageResult.priority.toUpperCase()}`,
     expectedVersion: 0,
     occurredAt: now,
   });
@@ -303,14 +307,14 @@ export function submitSymptomReport(input: {
     schemaVersion,
     createdAt: now,
     submittedBy: PATIENT_ID,
-    symptom: input.symptom,
-    dyspneaTrigger: input.dyspneaTrigger || null,
-    progression: input.progression || null,
-    spo2: input.spo2 || null,
-    temperature: input.temperature || null,
-    diarrheaEpisodes: input.diarrheaEpisodes || 0,
-    fever: Boolean(input.fever || (input.temperature && input.temperature >= 38.0)),
-    notes: (input.notes || "").trim(),
+    symptom: sanitized.symptom,
+    dyspneaTrigger: sanitized.dyspneaTrigger,
+    progression: sanitized.progression,
+    spo2: sanitized.spo2,
+    temperature: sanitized.temperature,
+    diarrheaEpisodes: sanitized.diarrheaEpisodes,
+    fever: sanitized.fever,
+    notes: sanitized.notes,
     status: transitioned.status,
     workflowVersion: transitioned.version,
   };
@@ -326,7 +330,7 @@ export function submitSymptomReport(input: {
     actorRole: "patient",
     fromStatus: "draft",
     toStatus: "submitted",
-    reason: `Báo cáo triệu chứng: ${input.symptom}, SpO2 ${input.spo2 || "N/A"}%, Thân nhiệt ${input.temperature || "N/A"}°C. Triage: ${triageResult.priority}`,
+    reason: `Báo cáo triệu chứng: ${sanitized.symptom}, SpO2 ${sanitized.spo2 !== null ? sanitized.spo2 + "%" : "N/A"}, Thân nhiệt ${sanitized.temperature !== null ? sanitized.temperature + "°C" : "N/A"}. Triage: ${triageResult.priority}`,
     workflowVersion: transitioned.version,
   };
 
@@ -372,27 +376,27 @@ export function nurseValidateReport(input: {
     updatedAt: state.activeReport.createdAt,
   };
 
-  // Step 1: nurse_validated
-  const validatedWorkflow = transitionWorkflow(currentWorkflow, {
+  // Step 1: nurse_assessed
+  const assessedWorkflow = transitionWorkflow(currentWorkflow, {
     actorId: NURSE_ID,
     actorRole: "nurse",
-    toStatus: "nurse_validated",
+    toStatus: "nurse_assessed",
     reason: `Điều dưỡng Lê Thị Mai hoàn tất đánh giá hô hấp: ${input.context}`,
     expectedVersion: input.expectedVersion,
     occurredAt: now,
   });
 
-  let finalWorkflow = validatedWorkflow;
-  let toStatus: WorkflowStatus = "nurse_validated";
+  let finalWorkflow = assessedWorkflow;
+  let toStatus: WorkflowStatus = "nurse_assessed";
 
   if (input.escalationRequired) {
     // Step 2: escalated
-    finalWorkflow = transitionWorkflow(validatedWorkflow, {
+    finalWorkflow = transitionWorkflow(assessedWorkflow, {
       actorId: NURSE_ID,
       actorRole: "nurse",
       toStatus: "escalated",
       reason: `Điều dưỡng chuyển khẩn Bác sĩ Trần Hoàng Long: ${input.context}`,
-      expectedVersion: validatedWorkflow.version,
+      expectedVersion: assessedWorkflow.version,
       occurredAt: now,
     });
     toStatus = "escalated";
@@ -407,9 +411,9 @@ export function nurseValidateReport(input: {
     symptomReportId: input.reportId,
     validatedBy: NURSE_ID,
     validatedAt: now,
-    repeatSpo2: input.repeatSpo2 || 91,
-    respiratoryRate: input.respiratoryRate || 24,
-    temperature: input.temperature || 38.1,
+    repeatSpo2: typeof input.repeatSpo2 === "number" ? input.repeatSpo2 : 91,
+    respiratoryRate: typeof input.respiratoryRate === "number" ? input.respiratoryRate : 24,
+    temperature: typeof input.temperature === "number" ? input.temperature : 38.1,
     dyspneaSeverity: input.dyspneaSeverity || "at_rest",
     cough: input.cough ?? true,
     chestPain: input.chestPain ?? false,
@@ -467,6 +471,18 @@ export function doctorSignOffDecision(input: {
     throw new Error("Không tìm thấy ca bệnh cần duyệt.");
   }
 
+  // CLINICAL SAFETY GUARD: Doctor cannot review or sign before Nurse has escalated!
+  if (!["escalated", "doctor_reviewing", "decision_drafted"].includes(state.activeReport.status)) {
+    throw new WorkflowTransitionError(
+      `CLINICAL_SAFETY_GUARD: Doctor review is locked until nursing assessment and escalation are completed (current status: ${state.activeReport.status}).`,
+      "INVALID_TRANSITION",
+    );
+  }
+
+  if (!input.rationale || input.rationale.trim().length === 0) {
+    throw new Error("Căn cứ lâm sàng (rationale) của bác sĩ không được để trống.");
+  }
+
   const now = new Date().toISOString();
   const currentWorkflow = {
     symptomReportId: state.activeReport.id,
@@ -477,27 +493,17 @@ export function doctorSignOffDecision(input: {
     updatedAt: state.activeReport.createdAt,
   };
 
-  // Step 1: Doctor reviewed
-  const reviewedWorkflow = transitionWorkflow(currentWorkflow, {
+  // Step 1: Doctor signs decision
+  const signedWorkflow = transitionWorkflow(currentWorkflow, {
     actorId: DOCTOR_ID,
     actorRole: "doctor",
-    toStatus: "doctor_reviewed",
-    reason: `Bác sĩ hoàn thành đánh giá lâm sàng đợt khó thở. Biện luận: ${input.rationale}`,
+    toStatus: "signed",
+    reason: `Bác sĩ ký duyệt quyết định lâm sàng (${input.outcome}). Biện luận: ${input.rationale}`,
     expectedVersion: input.expectedVersion,
     occurredAt: now,
   });
 
-  // Step 2: Doctor signs decision
-  const signedWorkflow = transitionWorkflow(reviewedWorkflow, {
-    actorId: DOCTOR_ID,
-    actorRole: "doctor",
-    toStatus: "signed",
-    reason: `Bác sĩ ký duyệt kế hoạch điều trị và chỉ định cận lâm sàng khẩn cấp.`,
-    expectedVersion: reviewedWorkflow.version,
-    occurredAt: now,
-  });
-
-  // Step 3: System notifies patient
+  // Step 2: System notifies patient
   const notifiedWorkflow = transitionWorkflow(signedWorkflow, {
     actorId: SYSTEM_ID,
     actorRole: "system",
@@ -518,20 +524,11 @@ export function doctorSignOffDecision(input: {
     reviewedBy: DOCTOR_ID,
     reviewedAt: now,
     outcome: input.outcome,
-    differentials: input.differentials || [
-      "Viêm phổi kẽ / Độc tính phổi do Osimertinib (Drug-induced ILD/Pneumonitis)",
-      "Nhiễm trùng hô hấp / Viêm phổi cộng đồng",
-      "Thuyên tắc phổi (PE)",
-    ],
-    investigationsOrdered: input.investigationsOrdered || [
-      "Chụp HRCT lồng ngực khẩn",
-      "Công thức máu (CBC), CRP",
-      "Khí máu động mạch (ABG)",
-      "Khám chuyên khoa hô hấp",
-    ],
-    clinicalActions: input.clinicalActions || "Tạm dừng Osimertinib 80mg từ hôm nay. Nghỉ ngơi tại giường, chuẩn bị chụp HRCT ngực tại Bệnh viện K.",
-    patientInstructionsPlain: input.patientInstructionsPlain || "Bác An tạm dừng uống viên Osimertinib hôm nay. Hãy nghỉ ngơi, đo lại SpO2 sau mỗi 2 giờ. Điều dưỡng Mai sẽ gọi điện kiểm tra lúc 18:00.",
-    monitoring: input.monitoring || "Theo dõi SpO2 liên tục, thân nhiệt mỗi 4 giờ, đếm nhịp thở.",
+    differentials: input.differentials || [],
+    investigationsOrdered: input.investigationsOrdered || [],
+    clinicalActions: input.clinicalActions || "",
+    patientInstructionsPlain: input.patientInstructionsPlain || "",
+    monitoring: input.monitoring || "",
     followUpAssignedTo: input.followUpAssignedTo || "ĐD. Lê Thị Mai",
     followUpTime: input.followUpTime || "Hôm nay · 18:00",
     rationale: input.rationale.trim(),
@@ -549,10 +546,10 @@ export function doctorSignOffDecision(input: {
       createdAt: now,
       version: nextVersionNumber,
       physicianDecisionId: decisionId,
-      summary: input.clinicalActions || "Tạm dừng Osimertinib 80mg. Chụp HRCT ngực khẩn, làm CTM/CRP/khí máu và khám chuyên khoa hô hấp.",
-      patientInstructionsPlain: input.patientInstructionsPlain || "Bác An tạm dừng uống viên Osimertinib hôm nay. Hãy nghỉ ngơi, đo lại SpO2 sau mỗi 2 giờ. Điều dưỡng Mai sẽ gọi điện hướng dẫn và hẹn giờ kiểm tra lúc 18:00 hôm nay.",
-      clinicalActions: input.clinicalActions || "Tạm dừng Osimertinib 80mg. Chỉ định HRCT ngực khẩn, CTM, CRP, ABG, hội chẩn hô hấp.",
-      monitoring: input.monitoring || "Theo dõi SpO2 liên tục, thân nhiệt mỗi 4 giờ, nhịp thở.",
+      summary: input.clinicalActions || "Cập nhật kế hoạch chăm sóc theo chỉ định bác sĩ.",
+      patientInstructionsPlain: input.patientInstructionsPlain || "Bác An tuân thủ theo hướng dẫn mới từ bác sĩ.",
+      clinicalActions: input.clinicalActions || "",
+      monitoring: input.monitoring || "",
       followUpAssignedTo: input.followUpAssignedTo || "ĐD. Lê Thị Mai",
       followUpTime: input.followUpTime || "Hôm nay · 18:00",
       signedBy: DOCTOR_ID,
@@ -575,7 +572,7 @@ export function doctorSignOffDecision(input: {
     actorRole: "doctor",
     fromStatus: state.activeReport.status,
     toStatus: "signed",
-    reason: `Bác sĩ ký duyệt Kế hoạch Chăm sóc V${state.activeCarePlan.version}. Chỉ định: HRCT ngực khẩn, tạm hoãn Osimertinib.`,
+    reason: `Bác sĩ ký duyệt quyết định (${input.outcome}). Kế hoạch Chăm sóc V${state.activeCarePlan.version}.`,
     workflowVersion: signedWorkflow.version,
   };
 
@@ -590,7 +587,7 @@ export function doctorSignOffDecision(input: {
     actorRole: "system",
     fromStatus: "signed",
     toStatus: "patient_notified",
-    reason: "Đã gửi thông báo kế hoạch chăm sóc mới tới người bệnh và gán lịch tái đánh giá 18:00 cho điều dưỡng",
+    reason: "Đã gửi thông báo kế hoạch chăm sóc mới tới người bệnh và gán lịch tái đánh giá cho điều dưỡng",
     workflowVersion: notifiedWorkflow.version,
   };
 

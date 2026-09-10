@@ -36,17 +36,44 @@ type TransitionRule = {
 };
 
 const rules: readonly TransitionRule[] = [
+  // 1. Patient initiates
   { from: "draft", to: "submitted", roles: ["patient"] },
-  { from: "submitted", to: "nurse_validated", roles: ["nurse"] },
+
+  // 2. Nurse processes and reviews
+  { from: "submitted", to: "nurse_reviewing", roles: ["nurse"] },
+  { from: "submitted", to: "nurse_assessed", roles: ["nurse"] },
+  { from: "submitted", to: "escalated", roles: ["nurse"] },
   { from: "submitted", to: "needs_information", roles: ["nurse"] },
-  { from: "nurse_validated", to: "escalated", roles: ["nurse"] },
-  { from: "nurse_validated", to: "doctor_reviewed", roles: ["doctor"] },
-  { from: "escalated", to: "doctor_reviewed", roles: ["doctor"] },
-  { from: "doctor_reviewed", to: "signed", roles: ["doctor"] },
-  { from: "doctor_reviewed", to: "needs_information", roles: ["doctor"] },
+
+  { from: "nurse_reviewing", to: "nurse_assessed", roles: ["nurse"] },
+  { from: "nurse_reviewing", to: "escalated", roles: ["nurse"] },
+  { from: "nurse_reviewing", to: "needs_information", roles: ["nurse"] },
+
+  { from: "nurse_assessed", to: "escalated", roles: ["nurse"] },
+  { from: "nurse_assessed", to: "needs_information", roles: ["nurse"] },
+
+  // 3. Doctor review (STRICT GUARD: Only accessible AFTER valid escalation)
+  { from: "escalated", to: "doctor_reviewing", roles: ["doctor"] },
+  { from: "escalated", to: "decision_drafted", roles: ["doctor"] },
+  { from: "escalated", to: "signed", roles: ["doctor"] },
+  { from: "escalated", to: "needs_information", roles: ["doctor"] },
+
+  { from: "doctor_reviewing", to: "decision_drafted", roles: ["doctor"] },
+  { from: "doctor_reviewing", to: "signed", roles: ["doctor"] },
+  { from: "doctor_reviewing", to: "needs_information", roles: ["doctor"] },
+
+  { from: "decision_drafted", to: "signed", roles: ["doctor"] },
+  { from: "decision_drafted", to: "needs_information", roles: ["doctor"] },
+
+  // 4. System publishes care plan & Patient notification
   { from: "signed", to: "patient_notified", roles: ["system"] },
-  { from: "patient_notified", to: "acknowledged", roles: ["patient"] },
   { from: "signed", to: "superseded", roles: ["doctor"] },
+
+  // 5. Patient acknowledges
+  { from: "patient_notified", to: "acknowledged", roles: ["patient"] },
+
+  // 6. Clarification loop
+  { from: "needs_information", to: "submitted", roles: ["patient"] },
 ];
 
 export class WorkflowTransitionError extends Error {

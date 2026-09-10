@@ -16,28 +16,64 @@ export default function PatientSymptomCheckPage() {
   const [symptom, setSymptom] = useState<SymptomKind>("dyspnea");
   const [dyspneaTrigger, setDyspneaTrigger] = useState<DyspneaTrigger>("at_rest");
   const [progression, setProgression] = useState<Progression>("worse");
-  const [spo2, setSpo2] = useState<number>(91);
-  const [temperature, setTemperature] = useState<number>(38.1);
+  const [spo2, setSpo2] = useState<number | "">(91);
+  const [temperature, setTemperature] = useState<number | "">(38.1);
+  const [diarrheaEpisodes, setDiarrheaEpisodes] = useState<number>(3);
+  const [fever, setFever] = useState<boolean>(false);
   const [notes, setNotes] = useState<string>("Cảm thấy hụt hơi ngay cả khi ngồi nghỉ, người gai sốt và mệt từ sáng nay.");
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
 
   const activeReport = state?.activeReport;
 
+  // Symptom isolation handler: Switching symptom cleans incompatible values
+  const handleSelectSymptom = (newSymptom: SymptomKind) => {
+    setSymptom(newSymptom);
+    setSubmitError(null);
+    if (newSymptom === "dyspnea") {
+      setDyspneaTrigger("at_rest");
+      setProgression("worse");
+      setSpo2(91);
+      setTemperature(38.1);
+      setDiarrheaEpisodes(0);
+      setFever(false);
+      setNotes("Cảm thấy hụt hơi ngay cả khi ngồi nghỉ, người gai sốt và mệt từ sáng nay.");
+    } else if (newSymptom === "diarrhea") {
+      setDyspneaTrigger(null);
+      setProgression(null);
+      setSpo2("");
+      setTemperature("");
+      setDiarrheaEpisodes(4);
+      setFever(false);
+      setNotes("Đi ngoài phân lỏng 4-5 lần từ sáng, đang uống bù Oresol.");
+    } else {
+      setDyspneaTrigger(null);
+      setProgression(null);
+      setSpo2("");
+      setTemperature(newSymptom === "fever" ? 38.5 : "");
+      setDiarrheaEpisodes(0);
+      setFever(newSymptom === "fever");
+      setNotes("");
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitError(null);
     try {
       await submitReport({
         symptom,
         dyspneaTrigger: symptom === "dyspnea" ? dyspneaTrigger : null,
         progression: symptom === "dyspnea" ? progression : null,
-        spo2: spo2 || null,
-        temperature: temperature || null,
-        fever: temperature >= 38.0,
+        spo2: symptom === "dyspnea" && typeof spo2 === "number" ? spo2 : null,
+        temperature: typeof temperature === "number" ? temperature : null,
+        diarrheaEpisodes: symptom === "diarrhea" ? diarrheaEpisodes : 0,
+        fever: fever || (typeof temperature === "number" && temperature >= 38.0),
         notes,
       });
       setIsSubmitted(true);
-    } catch {
-      // Handled in context
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : "Gửi báo cáo thất bại. Vui lòng thử lại.");
     }
   };
 
@@ -51,7 +87,7 @@ export default function PatientSymptomCheckPage() {
     { id: "other", label: "Triệu chứng khác", desc: "Các bất thường khác" },
   ];
 
-  const isUrgent = symptom === "dyspnea" && (dyspneaTrigger === "at_rest" || spo2 <= 92);
+  const isUrgent = symptom === "dyspnea" && (dyspneaTrigger === "at_rest" || (typeof spo2 === "number" && spo2 <= 92));
 
   return (
     <div className="space-y-4 pb-16">
@@ -65,7 +101,26 @@ export default function PatientSymptomCheckPage() {
         </span>
       </div>
 
-      {isSubmitted || (activeReport && ["submitted", "nurse_validated", "escalated", "doctor_reviewed"].includes(activeReport.status)) ? (
+      {submitError && (
+        <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-900 text-xs text-rose-900 dark:text-rose-200 flex items-start justify-between gap-2 animate-fadeIn">
+          <div className="flex items-start gap-2">
+            <AlertTriangleIcon size={16} className="text-rose-600 shrink-0 mt-0.5" />
+            <div>
+              <div className="font-bold">Không thể gửi báo cáo</div>
+              <p className="text-[11px] text-rose-800 dark:text-rose-300">{submitError}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSubmitError(null)}
+            className="text-[10px] font-bold px-2 py-1 rounded bg-rose-200 dark:bg-rose-900 text-rose-900 dark:text-rose-100"
+          >
+            Đóng
+          </button>
+        </div>
+      )}
+
+      {isSubmitted || (activeReport && ["submitted", "nurse_reviewing", "nurse_assessed", "escalated", "doctor_reviewing", "decision_drafted"].includes(activeReport.status)) ? (
         /* Live Status Timeline After Submission */
         <section className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4 animate-fadeIn">
           <div className="flex items-center gap-3">
@@ -96,14 +151,16 @@ export default function PatientSymptomCheckPage() {
                 </div>
                 <div>
                   <div className="font-bold text-xs text-slate-900 dark:text-white">Đã gửi báo cáo triệu chứng</div>
-                  <div className="text-[11px] text-slate-500">Khó thở khi nghỉ · SpO2 91% · Sốt 38.1°C</div>
+                  <div className="text-[11px] text-slate-500">
+                    {activeReport?.symptom === "dyspnea" ? "Khó thở khi nghỉ · SpO2 91% · Sốt 38.1°C" : activeReport?.symptom || "Triệu chứng mới"}
+                  </div>
                 </div>
               </div>
 
               {/* Step 2 */}
               <div className="flex items-start gap-3 relative">
                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
-                  activeReport?.status === "submitted" || activeReport?.status === "nurse_validated" || activeReport?.status === "escalated" || activeReport?.status === "doctor_reviewed"
+                  activeReport?.status === "submitted" || activeReport?.status === "nurse_reviewing" || activeReport?.status === "nurse_assessed" || activeReport?.status === "escalated" || activeReport?.status === "doctor_reviewing"
                     ? "bg-emerald-500 text-white"
                     : "bg-slate-200 text-slate-400"
                 }`}>
@@ -118,11 +175,11 @@ export default function PatientSymptomCheckPage() {
               {/* Step 3 */}
               <div className="flex items-start gap-3 relative">
                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
-                  activeReport?.status === "escalated" || activeReport?.status === "doctor_reviewed"
+                  activeReport?.status === "escalated" || activeReport?.status === "doctor_reviewing" || activeReport?.status === "decision_drafted"
                     ? "bg-emerald-500 text-white"
                     : "bg-slate-200 text-slate-400"
                 }`}>
-                  {activeReport?.status === "escalated" || activeReport?.status === "doctor_reviewed" ? "✓" : "3"}
+                  {activeReport?.status === "escalated" || activeReport?.status === "doctor_reviewing" ? "✓" : "3"}
                 </div>
                 <div>
                   <div className="font-bold text-xs text-slate-900 dark:text-white">Chuyển BS. Trần Hoàng Long hội chẩn</div>
@@ -152,7 +209,7 @@ export default function PatientSymptomCheckPage() {
                 <button
                   type="button"
                   key={c.id}
-                  onClick={() => setSymptom(c.id)}
+                  onClick={() => handleSelectSymptom(c.id)}
                   className={`p-3 rounded-2xl text-left border transition-all ${
                     symptom === c.id
                       ? "border-emerald-600 bg-emerald-50/80 dark:bg-emerald-950/60 text-emerald-950 dark:text-emerald-200 ring-2 ring-emerald-500/20"
@@ -166,7 +223,7 @@ export default function PatientSymptomCheckPage() {
             </div>
           </section>
 
-          {/* Step 2: Progressive Dyspnea Drill-Down */}
+          {/* Step 2A: Progressive Dyspnea Pathway */}
           {symptom === "dyspnea" && (
             <section className="bg-white dark:bg-slate-900 rounded-3xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4 animate-fadeIn">
               <div className="space-y-2">
@@ -231,7 +288,7 @@ export default function PatientSymptomCheckPage() {
                     <input
                       type="number"
                       value={spo2}
-                      onChange={(e) => setSpo2(Number(e.target.value))}
+                      onChange={(e) => setSpo2(e.target.value === "" ? "" : Number(e.target.value))}
                       min={60}
                       max={100}
                       className="w-full text-lg font-bold text-slate-900 dark:text-white bg-transparent focus:outline-none"
@@ -245,7 +302,7 @@ export default function PatientSymptomCheckPage() {
                       type="number"
                       step="0.1"
                       value={temperature}
-                      onChange={(e) => setTemperature(Number(e.target.value))}
+                      onChange={(e) => setTemperature(e.target.value === "" ? "" : Number(e.target.value))}
                       min={35}
                       max={42}
                       className="w-full text-lg font-bold text-slate-900 dark:text-white bg-transparent focus:outline-none"
@@ -263,6 +320,76 @@ export default function PatientSymptomCheckPage() {
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   rows={2}
+                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+            </section>
+          )}
+
+          {/* Step 2B: Progressive Diarrhea Pathway */}
+          {symptom === "diarrhea" && (
+            <section className="bg-white dark:bg-slate-900 rounded-3xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4 animate-fadeIn">
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                  Số lần đi ngoài phân lỏng trong 24 giờ qua:
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="number"
+                    value={diarrheaEpisodes}
+                    onChange={(e) => setDiarrheaEpisodes(Number(e.target.value))}
+                    min={1}
+                    max={30}
+                    className="w-24 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-base font-bold text-center text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                  <span className="text-xs text-slate-600 dark:text-slate-300">lần / ngày (≥ 4 lần là Độc tính độ 2)</span>
+                </div>
+              </div>
+
+              <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                  Bác có bị sốt hoặc đau quặn bụng không?
+                </label>
+                <div className="flex gap-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setFever(!fever)}
+                    className={`p-2.5 rounded-xl border font-semibold ${
+                      fever ? "border-amber-500 bg-amber-50 dark:bg-amber-950 text-amber-900 dark:text-amber-200" : "border-slate-200 dark:border-slate-700 text-slate-600"
+                    }`}
+                  >
+                    {fever ? "✓ Có sốt / gai rét" : "Không sốt"}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-800 dark:text-slate-200 mb-1 block">
+                  Ghi chú thêm:
+                </label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows={2}
+                  placeholder="Bác đang uống bù nước Oresol ra sao..."
+                  className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+            </section>
+          )}
+
+          {/* Step 2C: Generic other symptoms */}
+          {symptom !== "dyspnea" && symptom !== "diarrhea" && (
+            <section className="bg-white dark:bg-slate-900 rounded-3xl p-4 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3 animate-fadeIn">
+              <div>
+                <label className="text-xs font-bold text-slate-800 dark:text-slate-200 mb-1 block">
+                  Mô tả chi tiết triệu chứng của bác:
+                </label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows={3}
+                  placeholder="Vui lòng mô tả thời điểm xuất hiện và mức độ khó chịu..."
                   className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>

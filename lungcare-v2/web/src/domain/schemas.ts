@@ -5,9 +5,19 @@ export const idSchema = z.string().uuid();
 export const timestampSchema = z.string().datetime({ offset: true });
 export const actorRoleSchema = z.enum(["patient", "nurse", "doctor", "system"]);
 export const workflowStatusSchema = z.enum([
-  "draft", "submitted", "nurse_validated", "escalated", "doctor_reviewed",
-  "signed", "patient_notified", "acknowledged", "needs_information",
-  "cancelled", "superseded",
+  "draft",
+  "submitted",
+  "nurse_reviewing",
+  "nurse_assessed",
+  "escalated",
+  "doctor_reviewing",
+  "decision_drafted",
+  "signed",
+  "patient_notified",
+  "acknowledged",
+  "needs_information",
+  "cancelled",
+  "superseded",
 ]);
 
 const versionedEntity = {
@@ -24,6 +34,69 @@ export const symptomKindSchema = z.enum([
 
 export const dyspneaTriggerSchema = z.enum(["exertion_heavy", "walking", "at_rest"]).nullable();
 export const progressionSchema = z.enum(["better", "same", "worse"]).nullable();
+
+export interface SanitizedSymptomInput {
+  symptom: SymptomKind;
+  dyspneaTrigger: DyspneaTrigger;
+  progression: Progression;
+  spo2: number | null;
+  temperature: number | null;
+  diarrheaEpisodes: number;
+  fever: boolean;
+  notes: string;
+}
+
+export function sanitizeSymptomInput(raw: {
+  symptom: SymptomKind;
+  dyspneaTrigger?: DyspneaTrigger;
+  progression?: Progression;
+  spo2?: number | null;
+  temperature?: number | null;
+  diarrheaEpisodes?: number;
+  fever?: boolean;
+  notes?: string;
+}): SanitizedSymptomInput {
+  const symptom = raw.symptom;
+  const notes = (raw.notes || "").trim();
+
+  if (symptom === "dyspnea") {
+    return {
+      symptom: "dyspnea",
+      dyspneaTrigger: raw.dyspneaTrigger ?? "at_rest",
+      progression: raw.progression ?? "worse",
+      spo2: typeof raw.spo2 === "number" ? raw.spo2 : 91,
+      temperature: typeof raw.temperature === "number" ? raw.temperature : 38.1,
+      diarrheaEpisodes: 0,
+      fever: Boolean(raw.fever || (typeof raw.temperature === "number" && raw.temperature >= 38.0)),
+      notes,
+    };
+  }
+
+  if (symptom === "diarrhea") {
+    return {
+      symptom: "diarrhea",
+      dyspneaTrigger: null,
+      progression: null,
+      spo2: null,
+      temperature: null,
+      diarrheaEpisodes: typeof raw.diarrheaEpisodes === "number" ? raw.diarrheaEpisodes : 3,
+      fever: Boolean(raw.fever),
+      notes,
+    };
+  }
+
+  // Other isolated pathways (pain, rash, fever, nausea, fatigue, etc.)
+  return {
+    symptom,
+    dyspneaTrigger: null,
+    progression: null,
+    spo2: null,
+    temperature: typeof raw.temperature === "number" ? raw.temperature : null,
+    diarrheaEpisodes: 0,
+    fever: symptom === "fever" || Boolean(raw.fever),
+    notes,
+  };
+}
 
 export const symptomReportSchema = z.object({
   ...versionedEntity,

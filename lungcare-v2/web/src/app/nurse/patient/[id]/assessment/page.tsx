@@ -29,6 +29,7 @@ export default function NurseAssessmentPage({
   const [nurseContext, setNurseContext] = useState<string>(
     "Đã liên hệ điện thoại lúc 08:35. Bệnh nhân hụt hơi khi ngồi nghỉ, SpO2 đo lại 91%, nhịp thở 24 l/p, sốt 38.1°C, ho khan ít. Chưa dùng thuốc hạ sốt hay kháng sinh. Đề nghị Bác sĩ hội chẩn khẩn cấp."
   );
+  const [escalateError, setEscalateError] = useState<string | null>(null);
   const [isEscalated, setIsEscalated] = useState<boolean>(false);
 
   if (!state) {
@@ -44,7 +45,9 @@ export default function NurseAssessmentPage({
 
   const handleEscalate = async (e: React.FormEvent) => {
     e.preventDefault();
+    setEscalateError(null);
     if (!activeReport) {
+      setEscalateError("Không tìm thấy báo cáo triệu chứng để đánh giá.");
       return;
     }
     try {
@@ -64,8 +67,8 @@ export default function NurseAssessmentPage({
         context: nurseContext,
       });
       setIsEscalated(true);
-    } catch {
-      // Handled in context
+    } catch (err) {
+      setEscalateError(err instanceof Error ? err.message : "Chuyển tuyến bác sĩ thất bại. Vui lòng thử lại.");
     }
   };
 
@@ -94,6 +97,25 @@ export default function NurseAssessmentPage({
           Không gian Đánh giá Hô hấp
         </span>
       </div>
+
+      {escalateError && (
+        <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-900 text-xs text-rose-900 dark:text-rose-200 flex items-start justify-between gap-2 animate-fadeIn">
+          <div className="flex items-start gap-2">
+            <AlertTriangleIcon size={16} className="text-rose-600 shrink-0 mt-0.5" />
+            <div>
+              <div className="font-bold">Lỗi chuyển tuyến Bác sĩ</div>
+              <p className="text-[11px] text-rose-800 dark:text-rose-300">{escalateError}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setEscalateError(null)}
+            className="text-[10px] font-bold px-2 py-1 rounded bg-rose-200 dark:bg-rose-900 text-rose-900 dark:text-rose-100"
+          >
+            Đóng
+          </button>
+        </div>
+      )}
 
       {isEscalated ? (
         <section className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-md space-y-4 animate-fadeIn">

@@ -195,6 +195,24 @@ export default function DoctorCommandCenterPage() {
               Xem chi tiết
             </Link>
           </div>
+        ) : activeReport && ["submitted", "nurse_reviewing", "nurse_assessed"].includes(activeReport.status) ? (
+          <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-800 text-xs space-y-2">
+            <div className="flex items-center gap-2 font-bold text-amber-900 dark:text-amber-200">
+              <AlertTriangleIcon size={16} className="text-amber-600" />
+              <span>Khóa an toàn lâm sàng (Clinical Safety Guard)</span>
+            </div>
+            <p className="text-[11px] text-amber-800 dark:text-amber-300 leading-relaxed">
+              Bác sĩ chỉ xem xét và ký duyệt sau khi <strong>Điều dưỡng hoàn tất đánh giá hô hấp và chuyển tuyến</strong>. Hiện ca bệnh đang ở trạng thái phân tầng điều dưỡng.
+            </p>
+            <div className="pt-1">
+              <Link
+                href="/nurse/queue"
+                className="w-full py-2.5 rounded-xl border border-amber-400 dark:border-amber-700 bg-amber-100 dark:bg-amber-900 text-amber-950 dark:text-amber-100 font-bold text-xs text-center block"
+              >
+                Xem Hàng đợi Điều dưỡng →
+              </Link>
+            </div>
+          </div>
         ) : (
           <Link
             href={`/doctor/review/${activeReport?.id || "demo"}`}

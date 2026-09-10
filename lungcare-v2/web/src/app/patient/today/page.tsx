@@ -13,7 +13,6 @@ import {
   SparklesIcon,
   StethoscopeIcon,
   ChevronRightIcon,
-  ActivityIcon,
 } from "@/components/icons";
 
 export default function PatientTodayPage() {
@@ -303,27 +302,19 @@ export default function PatientTodayPage() {
 
       {/* 10. Bottom Navigation Bar (Patient) */}
       <nav className="fixed bottom-0 left-0 right-0 z-30 bg-white/95 dark:bg-slate-900/95 border-t border-slate-200 dark:border-slate-800 py-2 backdrop-blur-md">
-        <div className="max-w-md mx-auto px-4 grid grid-cols-5 text-center text-[10px] font-semibold text-slate-500">
+        <div className="max-w-md mx-auto px-4 grid grid-cols-3 text-center text-[10px] font-semibold text-slate-500">
           <Link href="/patient/today" className="text-emerald-700 dark:text-emerald-400 flex flex-col items-center gap-0.5">
             <HeartPulseIcon size={16} />
             <span>Hôm nay</span>
           </Link>
-          <div className="flex flex-col items-center gap-0.5 hover:text-slate-800 cursor-pointer">
-            <ActivityIcon size={16} />
-            <span>Hành trình</span>
-          </div>
-          <Link href="/patient/symptom-check" className="flex flex-col items-center gap-0.5 hover:text-slate-800">
+          <Link href="/patient/symptom-check" className="flex flex-col items-center gap-0.5 hover:text-slate-800 dark:hover:text-white">
             <AlertTriangleIcon size={16} />
-            <span>Sức khỏe</span>
+            <span>Báo triệu chứng</span>
           </Link>
-          <div className="flex flex-col items-center gap-0.5 hover:text-slate-800 cursor-pointer">
-            <PillIcon size={16} />
-            <span>Chi phí</span>
-          </div>
-          <div className="flex flex-col items-center gap-0.5 hover:text-slate-800 cursor-pointer">
+          <Link href="/" className="flex flex-col items-center gap-0.5 hover:text-slate-800 dark:hover:text-white">
             <UserIcon size={16} />
-            <span>Tôi</span>
-          </div>
+            <span>Đổi vai trò</span>
+          </Link>
         </div>
       </nav>
     </div>
